@@ -1,0 +1,349 @@
+:root {
+  --bg: #161615;
+  --bg-elevated: #1c1c1b;
+  --border: #2c2c2a;
+  --text: #e6e5e1;
+  --text-dim: #8f8d86;
+  --text-dimmer: #5c5b56;
+  --accent: #d99a3f;
+  --accent-dim: #8a6a3c;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+button {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease;
+}
+
+button:hover {
+  border-color: var(--text-dim);
+}
+
+button:active {
+  background: var(--border);
+}
+
+button:focus-visible,
+.request-row:focus-visible {
+  outline: 1px solid var(--text-dim);
+  outline-offset: 2px;
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+}
+
+.app {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 56px 20px 80px;
+}
+
+.app__error {
+  color: var(--accent);
+  font-size: 12px;
+  margin: 8px 0 0;
+}
+
+.app__status {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.app__body {
+  margin-top: 32px;
+}
+
+/* URL panel */
+
+.url-panel {
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 18px 20px;
+  background: var(--bg-elevated);
+}
+
+.url-panel__generate {
+  width: 100%;
+  padding: 15px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--bg);
+  background: var(--accent);
+  border: none;
+}
+
+.url-panel__generate:hover {
+  background: #e3a94f;
+}
+
+.url-panel__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.url-panel__url {
+  flex: 1;
+  color: var(--accent);
+  font-size: 15px;
+  letter-spacing: 0.01em;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding: 6px 0;
+}
+
+.url-panel__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-dimmer);
+}
+
+.url-panel__new {
+  font-size: 12px;
+  padding: 3px 8px;
+}
+
+/* Empty state */
+
+.empty-state {
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 24px;
+}
+
+.empty-state p {
+  margin: 0 0 12px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.empty-state__hint {
+  margin-top: 14px !important;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  color: var(--text-dimmer) !important;
+  font-size: 12px !important;
+}
+
+.empty-state__command {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 12px 14px;
+}
+
+.empty-state__command::before {
+  content: '$';
+  color: var(--text-dimmer);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+.empty-state__command pre {
+  flex: 1;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* Request list */
+
+.request-list {
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.request-list__header {
+  display: grid;
+  grid-template-columns: 90px 1fr 90px 90px;
+  gap: 12px;
+  padding: 9px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dimmer);
+  border-bottom: 1px solid var(--border);
+}
+
+.request-list__item + .request-list__item {
+  border-top: 1px solid var(--border);
+}
+
+.request-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 90px 90px;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text);
+  transition: background-color 120ms ease;
+}
+
+.request-row:hover {
+  background: var(--bg-elevated);
+  border-color: transparent;
+}
+
+.request-row__method {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.request-row__path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.request-row__size,
+.request-row__time {
+  color: var(--text-dim);
+}
+
+@keyframes row-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.request-list__item--enter {
+  animation: row-enter 220ms ease-out;
+}
+
+/* Request detail */
+
+@keyframes detail-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.request-detail {
+  padding: 16px 16px 20px;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  animation: detail-in 150ms ease-out;
+}
+
+.request-detail__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+}
+
+.request-detail__section {
+  margin-bottom: 16px;
+}
+
+.request-detail__section:last-child {
+  margin-bottom: 0;
+}
+
+.request-detail__section h3 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dimmer);
+  font-weight: 600;
+}
+
+.request-detail__empty-body,
+.request-detail__binary {
+  color: var(--text-dimmer);
+  font-size: 12.5px;
+  margin: 0;
+}
+
+.json-view {
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-dimmer);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.json-key {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.json-string {
+  color: var(--text);
+}
+
+.json-number,
+.json-boolean {
+  color: var(--text-dim);
+}
+
+.json-null {
+  color: var(--text-dimmer);
+  font-style: italic;
+}
