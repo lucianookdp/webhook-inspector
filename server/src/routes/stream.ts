@@ -2,16 +2,20 @@ import type { FastifyInstance } from 'fastify';
 import { getEndpointStatus } from '../endpointStatus.js';
 import { subscribeToRequests } from '../events.js';
 import { releaseSseSlot, tryAcquireSseSlot } from '../sseLimiter.js';
+import { endpointIdParamsSchema } from '../schemas.js';
 
 const HEARTBEAT_MS = 25_000;
 
 export async function streamRoutes(app: FastifyInstance) {
   app.get<{ Params: { id: string } }>(
     '/api/endpoints/:id/stream',
-    // A browser reconnecting after a network blip legitimately opens several
-    // new SSE connections in a minute, so this stays close to the read
-    // route's ceiling rather than the tighter capture-route one.
-    { config: { rateLimit: { max: 300, timeWindow: '1 minute' } } },
+    {
+      // A browser reconnecting after a network blip legitimately opens
+      // several new SSE connections in a minute, so this stays close to the
+      // read route's ceiling rather than the tighter capture-route one.
+      config: { rateLimit: { max: 300, timeWindow: '1 minute' } },
+      schema: { params: endpointIdParamsSchema },
+    },
     async (req, reply) => {
       const { id } = req.params;
 

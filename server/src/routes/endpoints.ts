@@ -4,6 +4,7 @@ import { decodeCursor, encodeCursor } from '../cursor.js';
 import { getEndpointStatus } from '../endpointStatus.js';
 import { generateId } from '../id.js';
 import { isLiveEndpointCeilingReached } from '../limits.js';
+import { endpointIdParamsSchema, requestsQuerystringSchema } from '../schemas.js';
 import type { RequestRow } from '../types.js';
 
 const ENDPOINT_TTL_MS = 24 * 60 * 60 * 1000;
@@ -43,10 +44,13 @@ export async function endpointRoutes(app: FastifyInstance) {
 
   app.get<{ Params: { id: string }; Querystring: { limit?: string; cursor?: string } }>(
     '/api/endpoints/:id/requests',
-    // Reads are far cheaper than writes and the page a browser polls on load
-    // can legitimately re-fire, so this ceiling is well above the capture
-    // route's rather than shared with it.
-    { config: { rateLimit: { max: 300, timeWindow: '1 minute' } } },
+    {
+      // Reads are far cheaper than writes and the page a browser polls on
+      // load can legitimately re-fire, so this ceiling is well above the
+      // capture route's rather than shared with it.
+      config: { rateLimit: { max: 300, timeWindow: '1 minute' } },
+      schema: { params: endpointIdParamsSchema, querystring: requestsQuerystringSchema },
+    },
     async (req, reply) => {
       const status = await getEndpointStatus(req.params.id);
       if (status === 'missing') {

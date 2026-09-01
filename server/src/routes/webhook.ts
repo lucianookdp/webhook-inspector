@@ -3,6 +3,7 @@ import { pool } from '../db.js';
 import { getEndpointStatus } from '../endpointStatus.js';
 import { publishRequest } from '../events.js';
 import { isStorageCeilingReached } from '../limits.js';
+import { endpointIdParamsSchema } from '../schemas.js';
 import type { RequestRow } from '../types.js';
 
 type WebhookRequest = FastifyRequest<{ Params: { id: string } }>;
@@ -79,14 +80,25 @@ export async function webhookRoutes(app: FastifyInstance) {
   app.addContentTypeParser('text/plain', boundedStreamParser);
   app.addContentTypeParser('*', boundedStreamParser);
 
+  // No body schema here: the bounded stream parser above hands every
+  // content-type to the handler as a raw CapturedBody, by design, so there's
+  // nothing schema-shaped to validate it against.
   app.all(
     '/w/:id',
-    { bodyLimit: ROUTE_BODY_LIMIT, config: { rateLimit: CAPTURE_RATE_LIMIT } },
+    {
+      bodyLimit: ROUTE_BODY_LIMIT,
+      config: { rateLimit: CAPTURE_RATE_LIMIT },
+      schema: { params: endpointIdParamsSchema },
+    },
     handleWebhook,
   );
   app.all(
     '/w/:id/*',
-    { bodyLimit: ROUTE_BODY_LIMIT, config: { rateLimit: CAPTURE_RATE_LIMIT } },
+    {
+      bodyLimit: ROUTE_BODY_LIMIT,
+      config: { rateLimit: CAPTURE_RATE_LIMIT },
+      schema: { params: endpointIdParamsSchema },
+    },
     handleWebhook,
   );
 }
