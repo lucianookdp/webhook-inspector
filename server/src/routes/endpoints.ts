@@ -3,6 +3,7 @@ import { pool } from '../db.js';
 import { decodeCursor, encodeCursor } from '../cursor.js';
 import { getEndpointStatus } from '../endpointStatus.js';
 import { generateId } from '../id.js';
+import { isLiveEndpointCeilingReached } from '../limits.js';
 import type { RequestRow } from '../types.js';
 
 const ENDPOINT_TTL_MS = 24 * 60 * 60 * 1000;
@@ -22,7 +23,15 @@ export async function endpointRoutes(app: FastifyInstance) {
     // debugging session) but is the operation an unlimited flood would use
     // to fill the database, so it gets the tightest ceiling in the app.
     { config: { rateLimit: { max: 10, timeWindow: '1 hour' } } },
-    async (_req, reply) => {
+    async (req, reply) => {
+      // Independent of the per-IP limit above: a flood spread across many
+      // IPs would sail past that but could still fill the database.
+      if (isLiveEndpointCeilingReached()) {
+        req.log.warn('live endpoint ceiling reached, rejecting creation');
+        reply.code(503).send({ error: 'at capacity, try again later' });
+        return;
+      }
+
       const id = generateId();
       const expiresAt = new Date(Date.now() + ENDPOINT_TTL_MS);
 

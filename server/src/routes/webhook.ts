@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { pool } from '../db.js';
 import { getEndpointStatus } from '../endpointStatus.js';
 import { publishRequest } from '../events.js';
+import { isStorageCeilingReached } from '../limits.js';
 import type { RequestRow } from '../types.js';
 
 type WebhookRequest = FastifyRequest<{ Params: { id: string } }>;
@@ -100,6 +101,17 @@ async function handleWebhook(req: WebhookRequest, reply: FastifyReply) {
   }
   if (status === 'expired') {
     reply.code(410).send({ error: 'endpoint expired' });
+    return;
+  }
+
+  // Independent of the per-IP capture limit: a flood spread across many IPs
+  // or many endpoints would sail past that but could still fill the disk.
+  // The body above this point has already been drained (never buffered
+  // past BODY_CAP_BYTES) so the connection still closes cleanly; only the
+  // database write is skipped.
+  if (isStorageCeilingReached()) {
+    req.log.warn('storage ceiling reached, rejecting capture');
+    reply.code(503).send({ error: 'at capacity, try again later' });
     return;
   }
 

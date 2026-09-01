@@ -23,6 +23,13 @@ in-memory counters. It's optional locally (rate limiting falls back to
 in-memory with a startup warning) but should be set for any deployment
 running more than one instance.
 
+`MAX_LIVE_ENDPOINTS` and `MAX_TOTAL_STORED_BYTES` are absolute ceilings,
+independent of the per-IP rate limits: a flood spread across many IPs (or
+many distinct endpoints) would sail past those but could still fill the
+database and run up a hosting bill. Once either is reached, new endpoints
+or captures are rejected with `503` until usage drops below the ceiling
+again (endpoints expiring is what makes that happen).
+
 `TRUST_PROXY` is a comma-separated list of the reverse proxy IP(s)/CIDR(s)
 actually in front of this process; only an `X-Forwarded-For` relayed by one
 of those addresses is trusted. It gates `req.ip`, which every per-IP rate
