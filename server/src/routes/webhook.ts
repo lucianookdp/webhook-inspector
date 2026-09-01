@@ -1,4 +1,3 @@
-import rateLimit from '@fastify/rate-limit';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { pool } from '../db.js';
 import { getEndpointStatus } from '../endpointStatus.js';
@@ -64,15 +63,12 @@ function boundedStreamParser(
   payload.on('error', (err) => done(err));
 }
 
-export async function webhookRoutes(app: FastifyInstance) {
-  // 100 requests/minute/IP: generous enough for a legitimate provider's retry
-  // bursts and for someone hammering curl by hand while testing, but well
-  // below what a flood aimed at a public, unauthenticated URL would send.
-  await app.register(rateLimit, {
-    max: 100,
-    timeWindow: '1 minute',
-  });
+// 100 requests/minute/IP: generous enough for a legitimate provider's retry
+// bursts and for someone hammering curl by hand while testing, but well
+// below what a flood aimed at a public, unauthenticated URL would send.
+const CAPTURE_RATE_LIMIT = { max: 100, timeWindow: '1 minute' };
 
+export async function webhookRoutes(app: FastifyInstance) {
   // Fastify's built-in json/text parsers reject malformed bodies before the
   // handler runs, so they're overridden here alongside the catch-all — every
   // content-type reaches the handler through the same bounded stream parser.
@@ -82,8 +78,16 @@ export async function webhookRoutes(app: FastifyInstance) {
   app.addContentTypeParser('text/plain', boundedStreamParser);
   app.addContentTypeParser('*', boundedStreamParser);
 
-  app.all('/w/:id', { bodyLimit: ROUTE_BODY_LIMIT }, handleWebhook);
-  app.all('/w/:id/*', { bodyLimit: ROUTE_BODY_LIMIT }, handleWebhook);
+  app.all(
+    '/w/:id',
+    { bodyLimit: ROUTE_BODY_LIMIT, config: { rateLimit: CAPTURE_RATE_LIMIT } },
+    handleWebhook,
+  );
+  app.all(
+    '/w/:id/*',
+    { bodyLimit: ROUTE_BODY_LIMIT, config: { rateLimit: CAPTURE_RATE_LIMIT } },
+    handleWebhook,
+  );
 }
 
 async function handleWebhook(req: WebhookRequest, reply: FastifyReply) {

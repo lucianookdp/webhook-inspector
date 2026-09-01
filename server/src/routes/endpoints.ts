@@ -16,17 +16,28 @@ function parseLimit(raw: string | undefined): number {
 }
 
 export async function endpointRoutes(app: FastifyInstance) {
-  app.post('/api/endpoints', async (_req, reply) => {
-    const id = generateId();
-    const expiresAt = new Date(Date.now() + ENDPOINT_TTL_MS);
+  app.post(
+    '/api/endpoints',
+    // 10/hour/IP: creating an endpoint is cheap for a real visitor (one per
+    // debugging session) but is the operation an unlimited flood would use
+    // to fill the database, so it gets the tightest ceiling in the app.
+    { config: { rateLimit: { max: 10, timeWindow: '1 hour' } } },
+    async (_req, reply) => {
+      const id = generateId();
+      const expiresAt = new Date(Date.now() + ENDPOINT_TTL_MS);
 
-    await pool.query('INSERT INTO endpoints (id, expires_at) VALUES ($1, $2)', [id, expiresAt]);
+      await pool.query('INSERT INTO endpoints (id, expires_at) VALUES ($1, $2)', [id, expiresAt]);
 
-    reply.code(201).send({ id, expiresAt: expiresAt.toISOString() });
-  });
+      reply.code(201).send({ id, expiresAt: expiresAt.toISOString() });
+    },
+  );
 
   app.get<{ Params: { id: string }; Querystring: { limit?: string; cursor?: string } }>(
     '/api/endpoints/:id/requests',
+    // Reads are far cheaper than writes and the page a browser polls on load
+    // can legitimately re-fire, so this ceiling is well above the capture
+    // route's rather than shared with it.
+    { config: { rateLimit: { max: 300, timeWindow: '1 minute' } } },
     async (req, reply) => {
       const status = await getEndpointStatus(req.params.id);
       if (status === 'missing') {
