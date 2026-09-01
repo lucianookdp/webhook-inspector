@@ -17,7 +17,7 @@ export function endpointUrl(id: string): string {
 
 export async function createEndpoint(): Promise<EndpointInfo> {
   const res = await fetch(`${API_BASE}/api/endpoints`, { method: 'POST' });
-  if (!res.ok) throw new Error(`failed to create endpoint: ${res.status}`);
+  if (!res.ok) throw new ApiError(res.status, `failed to create endpoint: ${res.status}`);
   return res.json();
 }
 

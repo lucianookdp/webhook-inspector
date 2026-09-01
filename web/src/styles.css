@@ -67,6 +67,14 @@ pre {
   padding: 56px 20px 80px;
 }
 
+.app__pitch {
+  color: var(--text-dim);
+  font-size: 15px;
+  line-height: 1.5;
+  margin: 0 0 20px;
+  max-width: 60ch;
+}
+
 .app__error {
   color: var(--accent);
   font-size: 12px;
@@ -93,7 +101,7 @@ pre {
 .url-panel {
   border: 1px solid var(--border);
   border-radius: 3px;
-  padding: 18px 20px;
+  padding: 22px 24px;
   background: var(--bg-elevated);
 }
 
@@ -112,28 +120,49 @@ pre {
   background: #e3a94f;
 }
 
+.url-panel__pending {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+}
+
 .url-panel__row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
 .url-panel__url {
   flex: 1;
   color: var(--accent);
-  font-size: 15px;
+  font-size: 22px;
+  font-weight: 600;
   letter-spacing: 0.01em;
   overflow-x: auto;
   white-space: nowrap;
   padding: 6px 0;
 }
 
+.url-panel__copy {
+  flex-shrink: 0;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--bg);
+  background: var(--accent);
+  border: none;
+}
+
+.url-panel__copy:hover {
+  background: #e3a94f;
+}
+
 .url-panel__meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 12px;
-  padding-top: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
   border-top: 1px solid var(--border);
   font-size: 12px;
   color: var(--text-dimmer);
