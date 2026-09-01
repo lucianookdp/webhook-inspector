@@ -67,3 +67,23 @@ cd web && npm install && npm run dev
 Open `http://localhost:5173`.
 
 SSE was chosen over WebSockets because the data only flows one way, server to browser — SSE gets that over plain HTTP, with reconnection handled by the browser instead of hand-rolled protocol code on both ends. Endpoints expire after 24 hours because a disposable inspector has no business holding onto someone else's request bodies, headers, and tokens past the debugging session they were captured for; a hard expiry keeps that data from quietly becoming a long-term store.
+
+## Abuse handling
+
+This is a public, unauthenticated write endpoint — anyone who has (or
+guesses) an endpoint URL can send it anything. If an endpoint is being used
+for something it shouldn't be, an operator can stop it from accepting new
+captures immediately, without waiting for its 24-hour expiry, by setting its
+`disabled` flag directly in the database:
+
+```sql
+UPDATE endpoints SET disabled = true WHERE id = '<endpoint id>';
+```
+
+A disabled endpoint responds identically to one that never existed, so
+whoever was using it gets no signal that it was deliberately shut off rather
+than simply gone. There's no public API for this — only direct database
+access — since a self-service version of it would itself be a way to
+disrupt someone else's endpoint by anyone who happened to see its URL.
+
+To report abuse of the hosted demo, contact lucianokdp@gmail.com.
