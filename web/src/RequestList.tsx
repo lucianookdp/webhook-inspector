@@ -1,6 +1,6 @@
-import type { RequestRow } from './types';
 import { formatBytes, formatRelativeTime } from './format';
 import { JsonView } from './JsonView';
+import type { RequestRow } from './types';
 
 function parseJsonBody(row: RequestRow): unknown | undefined {
   if (row.body_is_binary || row.body === null || row.body === '') return undefined;
@@ -44,7 +44,9 @@ function RequestDetail({ row }: { row: RequestRow }) {
         )}
         {row.body_is_binary ? (
           <>
-            <p className="request-detail__binary">binary content, {formatBytes(row.size_bytes)}, base64-encoded below</p>
+            <p className="request-detail__binary">
+              binary content, {formatBytes(row.size_bytes)}, base64-encoded below
+            </p>
             <pre className="json-view">{row.body}</pre>
           </>
         ) : row.body === null || row.body === '' ? (

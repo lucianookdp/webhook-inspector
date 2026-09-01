@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import { pool } from '../db.js';
 import { decodeCursor, encodeCursor } from '../cursor.js';
+import { pool } from '../db.js';
 import { getEndpointStatus } from '../endpointStatus.js';
 import { generateId } from '../id.js';
 import { isLiveEndpointCeilingReached } from '../limits.js';

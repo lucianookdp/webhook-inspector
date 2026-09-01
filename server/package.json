@@ -7,7 +7,10 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "migrate": "tsx src/migrate.ts",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "format:check": "biome format ."
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",
@@ -19,6 +22,7 @@
     "pg": "^8.13.1"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.11",
     "@types/node": "^22.9.0",
     "@types/pg": "^8.11.10",
     "tsx": "^4.19.2",
