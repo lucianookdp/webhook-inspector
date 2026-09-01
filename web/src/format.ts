@@ -10,6 +10,17 @@ export function formatRelativeTime(iso: string): string {
   return `${diffDay}d ago`;
 }
 
+export function formatCountdown(msRemaining: number): string {
+  if (msRemaining <= 0) return 'Expired';
+  const totalSeconds = Math.floor(msRemaining / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
+}
+
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   const kb = bytes / 1024;

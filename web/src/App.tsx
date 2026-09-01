@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ApiError, createEndpoint, endpointUrl, fetchRequests, streamUrl } from './api';
 import { EmptyState } from './EmptyState';
+import { formatCountdown } from './format';
 import { RequestList } from './RequestList';
 import type { EndpointInfo, RequestRow } from './types';
 import { useCopy } from './useCopy';
@@ -27,8 +28,17 @@ function clearStoredEndpoint() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
+function creationErrorMessage(err: unknown): string {
+  if (err instanceof ApiError && err.status === 429) {
+    return 'Too many URLs created recently from your network. Try again in a few minutes.';
+  }
+  return 'Could not create a URL. Check your connection and try again.';
+}
+
 export default function App() {
   const [endpoint, setEndpoint] = useState<EndpointInfo | null>(() => loadStoredEndpoint());
+  const [creating, setCreating] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [droppedCount, setDroppedCount] = useState(0);
@@ -38,6 +48,43 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const [copied, copy] = useCopy();
+
+  async function createNewEndpoint() {
+    setCreating(true);
+    setError(null);
+    try {
+      const created = await createEndpoint();
+      storeEndpoint(created);
+      setEndpoint(created);
+      setRequests([]);
+      setNextCursor(null);
+      setDroppedCount(0);
+      setSelectedId(null);
+    } catch (err) {
+      setError(creationErrorMessage(err));
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  // A first-time visitor should land on a working URL, not a button: if
+  // nothing was already stored, create one automatically. handleGenerate
+  // (the "New URL" button) covers the explicit re-create case afterwards.
+  // This is deliberately mount-only — it must not re-run as `endpoint`
+  // changes afterwards, so `createNewEndpoint`/`endpoint` are left out of
+  // the dependency list on purpose rather than by oversight.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only by design, see comment above
+  useEffect(() => {
+    if (!endpoint) void createNewEndpoint();
+  }, []);
+
+  // Ticks the countdown to expiry; only runs while there's an endpoint to
+  // count down for, so it doesn't keep the tab alive for no reason.
+  useEffect(() => {
+    if (!endpoint) return;
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [endpoint]);
 
   // History loads from the database first; only once it has resolved does the
   // SSE stream open, so a request that arrived while nobody was watching is
@@ -101,21 +148,6 @@ export default function App() {
     };
   }, [endpoint]);
 
-  async function handleGenerate() {
-    setError(null);
-    try {
-      const created = await createEndpoint();
-      storeEndpoint(created);
-      setEndpoint(created);
-      setRequests([]);
-      setNextCursor(null);
-      setDroppedCount(0);
-      setSelectedId(null);
-    } catch {
-      setError('Could not generate a new URL. Try again.');
-    }
-  }
-
   async function handleLoadMore() {
     if (!endpoint || !nextCursor || loadingMore) return;
     setLoadingMore(true);
@@ -132,29 +164,41 @@ export default function App() {
   }
 
   const url = endpoint ? endpointUrl(endpoint.id) : null;
+  const remainingMs = endpoint ? new Date(endpoint.expiresAt).getTime() - now : 0;
 
   return (
     <div className="app">
+      <p className="app__pitch">
+        Send any HTTP request to the URL below and watch it appear here right away — it stops working after 24 hours, so
+        nothing lingers.
+      </p>
+
       <section className="url-panel">
         {url && endpoint ? (
           <>
             <div className="url-panel__row">
               <code className="url-panel__url">{url}</code>
-              <button type="button" onClick={() => copy(url)}>
+              <button type="button" className="url-panel__copy" onClick={() => copy(url)}>
                 {copied ? 'Copied' : 'Copy'}
               </button>
             </div>
             <div className="url-panel__meta">
-              <span>Expires {new Date(endpoint.expiresAt).toLocaleString()}</span>
-              <button type="button" className="url-panel__new" onClick={handleGenerate}>
-                New URL
+              <span>Expires in {formatCountdown(remainingMs)}</span>
+              <button type="button" className="url-panel__new" onClick={createNewEndpoint} disabled={creating}>
+                {creating ? 'Generating...' : 'New URL'}
               </button>
             </div>
           </>
         ) : (
-          <button type="button" className="url-panel__generate" onClick={handleGenerate}>
-            Generate URL
-          </button>
+          <div className="url-panel__pending">
+            {creating ? (
+              <p className="app__status">Generating your URL...</p>
+            ) : (
+              <button type="button" className="url-panel__generate" onClick={createNewEndpoint}>
+                Try again
+              </button>
+            )}
+          </div>
         )}
         {error && <p className="app__error">{error}</p>}
       </section>
