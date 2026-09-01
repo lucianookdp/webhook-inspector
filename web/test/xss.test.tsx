@@ -54,7 +54,7 @@ test('a script tag inside a JSON string value renders escaped through the JSON v
 });
 
 test('no component in the detail pane uses dangerouslySetInnerHTML', async () => {
-  const files = ['../src/RequestList.tsx', '../src/JsonView.tsx'];
+  const files = ['../src/RequestList.tsx', '../src/RequestDetail.tsx', '../src/JsonView.tsx'];
   const { readFileSync } = await import('node:fs');
   const { fileURLToPath } = await import('node:url');
   for (const relative of files) {
