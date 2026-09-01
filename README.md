@@ -14,7 +14,14 @@ Requirements: Node 20+, a Postgres database (this project targets [Neon](https:/
 DATABASE_URL=postgres://user:password@host/dbname?sslmode=require
 PORT=3001
 TRUST_PROXY=127.0.0.1,::1
+REDIS_URL=redis://localhost:6379
 ```
+
+`REDIS_URL` backs rate limiting with Redis so limits survive a restart and
+are shared across instances, rather than each process tracking its own
+in-memory counters. It's optional locally (rate limiting falls back to
+in-memory with a startup warning) but should be set for any deployment
+running more than one instance.
 
 `TRUST_PROXY` is a comma-separated list of the reverse proxy IP(s)/CIDR(s)
 actually in front of this process; only an `X-Forwarded-For` relayed by one

@@ -2,6 +2,7 @@ import 'dotenv/config';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import Fastify from 'fastify';
+import { Redis } from 'ioredis';
 import { startExpiredEndpointCleanup } from './cleanup.js';
 import { endpointRoutes } from './routes/endpoints.js';
 import { streamRoutes } from './routes/stream.js';
@@ -26,13 +27,28 @@ await app.register(cors, {
   origin: process.env.WEB_ORIGIN ?? true,
 });
 
+// The default in-memory store resets on every deploy and doesn't apply
+// across instances, so limits are backed by Redis whenever REDIS_URL is
+// set. Without it every process tracks its own counters — fine for local
+// development, not for anything running more than one instance.
+let redisStore: Redis | undefined;
+if (process.env.REDIS_URL) {
+  redisStore = new Redis(process.env.REDIS_URL, { connectTimeout: 500, maxRetriesPerRequest: 1 });
+} else {
+  app.log.warn('REDIS_URL not set — rate limits are in-memory and per-instance');
+}
+
 // Registered globally so every route is covered by default, even one added
 // later without its own override; routes that need a different ceiling set
 // their own `config.rateLimit` (see routes/endpoints.js, routes/webhook.js,
-// routes/stream.js).
+// routes/stream.js). skipOnError keeps capture and browsing available if
+// Redis itself is briefly unreachable, rather than a store outage taking
+// down the whole app.
 await app.register(rateLimit, {
   max: 60,
   timeWindow: '1 minute',
+  redis: redisStore,
+  skipOnError: true,
 });
 
 app.register(endpointRoutes);
