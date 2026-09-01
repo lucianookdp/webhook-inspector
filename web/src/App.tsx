@@ -30,6 +30,8 @@ function clearStoredEndpoint() {
 export default function App() {
   const [endpoint, setEndpoint] = useState<EndpointInfo | null>(() => loadStoredEndpoint());
   const [requests, setRequests] = useState<RequestRow[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,9 +50,10 @@ export default function App() {
     setError(null);
 
     fetchRequests(endpoint.id)
-      .then((rows) => {
+      .then((page) => {
         if (cancelled) return;
-        setRequests(rows);
+        setRequests(page.items);
+        setNextCursor(page.nextCursor);
         source = new EventSource(streamUrl(endpoint.id));
         source.onmessage = (event) => {
           const row = JSON.parse(event.data) as RequestRow;
@@ -103,9 +106,24 @@ export default function App() {
       storeEndpoint(created);
       setEndpoint(created);
       setRequests([]);
+      setNextCursor(null);
       setSelectedId(null);
     } catch {
       setError('Could not generate a new URL. Try again.');
+    }
+  }
+
+  async function handleLoadMore() {
+    if (!endpoint || !nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const page = await fetchRequests(endpoint.id, nextCursor);
+      setRequests((prev) => [...prev, ...page.items]);
+      setNextCursor(page.nextCursor);
+    } catch {
+      setError('Could not load more requests.');
+    } finally {
+      setLoadingMore(false);
     }
   }
 
@@ -144,7 +162,14 @@ export default function App() {
           ) : requests.length === 0 ? (
             <EmptyState url={url!} />
           ) : (
-            <RequestList requests={requests} selectedId={selectedId} onSelect={setSelectedId} newIds={newIds} />
+            <>
+              <RequestList requests={requests} selectedId={selectedId} onSelect={setSelectedId} newIds={newIds} />
+              {nextCursor && (
+                <button type="button" className="app__load-more" onClick={handleLoadMore} disabled={loadingMore}>
+                  {loadingMore ? 'Loading...' : 'Load more'}
+                </button>
+              )}
+            </>
           )}
         </section>
       )}

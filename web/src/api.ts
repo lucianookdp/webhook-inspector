@@ -21,8 +21,16 @@ export async function createEndpoint(): Promise<EndpointInfo> {
   return res.json();
 }
 
-export async function fetchRequests(endpointId: string): Promise<RequestRow[]> {
-  const res = await fetch(`${API_BASE}/api/endpoints/${endpointId}/requests`);
+export interface RequestsPage {
+  items: RequestRow[];
+  nextCursor: string | null;
+}
+
+export async function fetchRequests(endpointId: string, cursor?: string): Promise<RequestsPage> {
+  const params = new URLSearchParams();
+  if (cursor) params.set('cursor', cursor);
+  const query = params.toString();
+  const res = await fetch(`${API_BASE}/api/endpoints/${endpointId}/requests${query ? `?${query}` : ''}`);
   if (!res.ok) throw new ApiError(res.status, `failed to fetch requests: ${res.status}`);
   return res.json();
 }
