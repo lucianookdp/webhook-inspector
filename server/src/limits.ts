@@ -20,10 +20,9 @@ async function refresh(log: FastifyBaseLogger) {
   try {
     const [endpoints, bytes] = await Promise.all([
       pool.query<{ count: string }>('SELECT count(*) FROM endpoints WHERE expires_at > now()'),
-      pool.query<{ total: string }>(
-        `SELECT COALESCE(SUM(LEAST(size_bytes, $1)), 0) AS total FROM requests`,
-        [STORED_BODY_CAP_BYTES],
-      ),
+      pool.query<{ total: string }>(`SELECT COALESCE(SUM(LEAST(size_bytes, $1)), 0) AS total FROM requests`, [
+        STORED_BODY_CAP_BYTES,
+      ]),
     ]);
     liveEndpointCount = Number(endpoints.rows[0].count);
     totalStoredBytes = Number(bytes.rows[0].total);

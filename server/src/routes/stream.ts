@@ -2,9 +2,9 @@ import type { FastifyInstance } from 'fastify';
 import * as config from '../config.js';
 import { getEndpointStatus } from '../endpointStatus.js';
 import { subscribeToRequests } from '../events.js';
+import { endpointIdParamsSchema } from '../schemas.js';
 import { releaseSseSlot, tryAcquireSseSlot } from '../sseLimiter.js';
 import { registerSseConnection, unregisterSseConnection } from '../sseRegistry.js';
-import { endpointIdParamsSchema } from '../schemas.js';
 
 const HEARTBEAT_MS = 25_000;
 

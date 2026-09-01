@@ -20,7 +20,7 @@ export function registerErrorHandlers(app: FastifyInstance) {
     reply.code(500).send({ error: 'internal error', correlationId: req.id });
   });
 
-  app.setNotFoundHandler((req: FastifyRequest, reply: FastifyReply) => {
+  app.setNotFoundHandler((_req: FastifyRequest, reply: FastifyReply) => {
     reply.code(404).send({ error: 'not found' });
   });
 }

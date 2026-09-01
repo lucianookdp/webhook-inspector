@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { ApiError, createEndpoint, endpointUrl, fetchRequests, streamUrl } from './api';
-import type { EndpointInfo, RequestRow } from './types';
 import { EmptyState } from './EmptyState';
 import { RequestList } from './RequestList';
+import type { EndpointInfo, RequestRow } from './types';
 import { useCopy } from './useCopy';
 
 const STORAGE_KEY = 'portaria:endpoint';
@@ -164,7 +164,7 @@ export default function App() {
           {loading ? (
             <p className="app__status">Loading history...</p>
           ) : requests.length === 0 ? (
-            <EmptyState url={url!} />
+            <EmptyState url={endpointUrl(endpoint.id)} />
           ) : (
             <>
               {droppedCount > 0 && (

@@ -3,7 +3,8 @@ import type { ReactNode } from 'react';
 // Matches string literals (keys get an attached trailing colon), booleans,
 // null, and numbers. Everything else (braces, brackets, commas, whitespace)
 // is left as plain text between matches.
-const TOKEN_RE = /"(?:\\u[0-9a-fA-F]{4}|\\.|[^\\"])*"(\s*:)?|\btrue\b|\bfalse\b|\bnull\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g;
+const TOKEN_RE =
+  /"(?:\\u[0-9a-fA-F]{4}|\\.|[^\\"])*"(\s*:)?|\btrue\b|\bfalse\b|\bnull\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g;
 
 function classify(token: string): string {
   if (token.endsWith(':')) return 'json-key';
