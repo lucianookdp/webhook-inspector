@@ -1,8 +1,7 @@
 import type { FastifyBaseLogger } from 'fastify';
+import * as config from './config.js';
 import { pool } from './db.js';
 
-const MAX_LIVE_ENDPOINTS = Number(process.env.MAX_LIVE_ENDPOINTS ?? 5000);
-const MAX_TOTAL_STORED_BYTES = Number(process.env.MAX_TOTAL_STORED_BYTES ?? 2 * 1024 * 1024 * 1024);
 const REFRESH_INTERVAL_MS = 30_000;
 // What actually lands on disk per request is capped by the bounded stream
 // parser regardless of the caller's reported size, so usage is measured
@@ -39,9 +38,9 @@ export function startResourceUsageTracking(log: FastifyBaseLogger) {
 }
 
 export function isLiveEndpointCeilingReached(): boolean {
-  return liveEndpointCount >= MAX_LIVE_ENDPOINTS;
+  return liveEndpointCount >= config.maxLiveEndpoints;
 }
 
 export function isStorageCeilingReached(): boolean {
-  return totalStoredBytes >= MAX_TOTAL_STORED_BYTES;
+  return totalStoredBytes >= config.maxTotalStoredBytes;
 }

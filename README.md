@@ -42,6 +42,16 @@ request with a forged `X-Forwarded-For` header and confirm the `ip`
 recorded on the resulting captured request is still your real address, not
 the forged one.
 
+### Configuration
+
+All environment parsing lives in `server/src/config.ts` and is validated
+once at startup rather than scattered across the codebase with per-call
+fallbacks. When `NODE_ENV=production`, `WEB_ORIGIN` is required and the
+process refuses to boot without it, logging a clear error and exiting
+rather than silently falling back to reflecting any origin for CORS. In
+development, that fallback is still permitted, but logged loudly at
+startup so it isn't easy to miss.
+
 ### Database roles
 
 The app's `DATABASE_URL` should connect as a role with only `SELECT`,
