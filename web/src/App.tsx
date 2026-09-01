@@ -38,6 +38,7 @@ function creationErrorMessage(err: unknown): string {
 export default function App() {
   const [endpoint, setEndpoint] = useState<EndpointInfo | null>(() => loadStoredEndpoint());
   const [creating, setCreating] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -148,6 +149,30 @@ export default function App() {
     };
   }, [endpoint]);
 
+  // Fires straight from the browser at the user's own endpoint — no server
+  // involvement beyond capturing it like any other request — so the first
+  // row shows up within about a second of landing on the page, over the
+  // SSE connection the history-load effect above already opened.
+  async function handleSendTestRequest() {
+    if (!endpoint) return;
+    setSendingTest(true);
+    try {
+      await fetch(endpointUrl(endpoint.id), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: 'test.request',
+          message: 'Hello from your browser — this is what a captured request looks like.',
+          sentAt: new Date().toISOString(),
+        }),
+      });
+    } catch {
+      setError('Could not send the test request. Check your connection.');
+    } finally {
+      setSendingTest(false);
+    }
+  }
+
   async function handleLoadMore() {
     if (!endpoint || !nextCursor || loadingMore) return;
     setLoadingMore(true);
@@ -202,6 +227,12 @@ export default function App() {
         )}
         {error && <p className="app__error">{error}</p>}
       </section>
+
+      {endpoint && (
+        <button type="button" className="app__test-request" onClick={handleSendTestRequest} disabled={sendingTest}>
+          {sendingTest ? 'Sending...' : 'Send a test request'}
+        </button>
+      )}
 
       {endpoint && (
         <section className="app__body">
