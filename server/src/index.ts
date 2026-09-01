@@ -6,12 +6,14 @@ import Fastify from 'fastify';
 import { Redis } from 'ioredis';
 import { startExpiredEndpointCleanup } from './cleanup.js';
 import * as config from './config.js';
+import { pool } from './db.js';
 import { registerErrorHandlers } from './errorHandlers.js';
 import { startResourceUsageTracking } from './limits.js';
 import { loggerOptions } from './logging.js';
 import { endpointRoutes } from './routes/endpoints.js';
 import { streamRoutes } from './routes/stream.js';
 import { webhookRoutes } from './routes/webhook.js';
+import { closeAllSseConnections } from './sseRegistry.js';
 
 // `true` would trust an X-Forwarded-For from any client, letting a caller
 // forge their own IP and defeat every per-IP rate limit. A bare hop count
@@ -96,10 +98,45 @@ app.register(endpointRoutes);
 app.register(streamRoutes);
 app.register(webhookRoutes);
 
-startExpiredEndpointCleanup(app.log);
+const cleanupInterval = startExpiredEndpointCleanup(app.log);
 startResourceUsageTracking(app.log);
 
 app.listen({ port: config.port, host: '0.0.0.0' }).catch((err) => {
   app.log.error(err);
   process.exit(1);
 });
+
+let shuttingDown = false;
+
+async function shutdown(signal: string) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  app.log.info({ signal }, 'shutting down');
+
+  // app.close() stops the server accepting new connections immediately, but
+  // its returned promise won't resolve until every open socket closes —
+  // which includes the hijacked SSE ones Fastify no longer tracks, so
+  // they're closed explicitly below rather than left for app.close() to
+  // wait on forever.
+  const closing = app.close();
+
+  closeAllSseConnections();
+  clearInterval(cleanupInterval);
+
+  try {
+    await closing;
+  } catch (err) {
+    app.log.error({ err }, 'error while closing server');
+  }
+
+  try {
+    await pool.end();
+  } catch (err) {
+    app.log.error({ err }, 'error while closing database pool');
+  }
+
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));
