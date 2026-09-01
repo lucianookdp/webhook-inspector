@@ -7,6 +7,7 @@ import { Redis } from 'ioredis';
 import { startExpiredEndpointCleanup } from './cleanup.js';
 import { registerErrorHandlers } from './errorHandlers.js';
 import { startResourceUsageTracking } from './limits.js';
+import { loggerOptions } from './logging.js';
 import { endpointRoutes } from './routes/endpoints.js';
 import { streamRoutes } from './routes/stream.js';
 import { webhookRoutes } from './routes/webhook.js';
@@ -22,7 +23,7 @@ import { webhookRoutes } from './routes/webhook.js';
 const trustProxy = (process.env.TRUST_PROXY ?? '127.0.0.1,::1').split(',').map((entry) => entry.trim());
 
 const app = Fastify({
-  logger: true,
+  logger: loggerOptions,
   trustProxy,
   // The default request id is a per-process counter (e.g. "req-1"), which
   // collides across instances and restarts — exactly where a correlation id
