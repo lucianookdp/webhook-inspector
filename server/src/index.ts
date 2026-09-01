@@ -4,6 +4,7 @@ import rateLimit from '@fastify/rate-limit';
 import Fastify from 'fastify';
 import { Redis } from 'ioredis';
 import { startExpiredEndpointCleanup } from './cleanup.js';
+import { startResourceUsageTracking } from './limits.js';
 import { endpointRoutes } from './routes/endpoints.js';
 import { streamRoutes } from './routes/stream.js';
 import { webhookRoutes } from './routes/webhook.js';
@@ -56,6 +57,7 @@ app.register(streamRoutes);
 app.register(webhookRoutes);
 
 startExpiredEndpointCleanup();
+startResourceUsageTracking(app.log);
 
 const port = Number(process.env.PORT ?? 3000);
 
