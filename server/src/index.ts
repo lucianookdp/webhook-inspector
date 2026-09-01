@@ -19,7 +19,28 @@ import { webhookRoutes } from './routes/webhook.js';
 // nothing else should be reachable as a peer anyway.
 const trustProxy = (process.env.TRUST_PROXY ?? '127.0.0.1,::1').split(',').map((entry) => entry.trim());
 
-const app = Fastify({ logger: true, trustProxy });
+const app = Fastify({
+  logger: true,
+  trustProxy,
+  // The bounded stream parser drains every byte of an incoming body no
+  // matter how slowly it arrives, so without a ceiling a client trickling
+  // data could hold a connection — and the worker handling it — open
+  // indefinitely. requestTimeout bounds how long headers + body may take;
+  // connectionTimeout bounds how long an idle socket may sit open (the SSE
+  // route's 25s heartbeat keeps a real stream well under it).
+  requestTimeout: 30_000,
+  connectionTimeout: 60_000,
+  keepAliveTimeout: 5_000,
+  // Caps requests served over one kept-alive socket so a single connection
+  // can't be reused indefinitely to sidestep per-request overhead.
+  maxRequestsPerSocket: 1000,
+  routerOptions: {
+    // The only path param outside the SSE/webhook wildcard is the 12-char
+    // endpoint id; the wildcard route accepts an arbitrary sub-path, so
+    // this stays generous rather than tight.
+    maxParamLength: 500,
+  },
+});
 app.log.info({ trustProxy }, 'trustProxy configured');
 
 // The web client and API live on different origins even in production
