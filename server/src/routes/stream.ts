@@ -19,7 +19,7 @@ export async function streamRoutes(app: FastifyInstance) {
     async (req, reply) => {
       const { id } = req.params;
 
-      const status = await getEndpointStatus(id);
+      const { status } = await getEndpointStatus(id);
       if (status === 'missing') {
         reply.code(404).send({ error: 'endpoint not found' });
         return;

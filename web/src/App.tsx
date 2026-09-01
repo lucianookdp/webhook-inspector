@@ -31,6 +31,7 @@ export default function App() {
   const [endpoint, setEndpoint] = useState<EndpointInfo | null>(() => loadStoredEndpoint());
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [droppedCount, setDroppedCount] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -54,6 +55,7 @@ export default function App() {
         if (cancelled) return;
         setRequests(page.items);
         setNextCursor(page.nextCursor);
+        setDroppedCount(page.droppedCount);
         source = new EventSource(streamUrl(endpoint.id));
         source.onmessage = (event) => {
           const row = JSON.parse(event.data) as RequestRow;
@@ -107,6 +109,7 @@ export default function App() {
       setEndpoint(created);
       setRequests([]);
       setNextCursor(null);
+      setDroppedCount(0);
       setSelectedId(null);
     } catch {
       setError('Could not generate a new URL. Try again.');
@@ -120,6 +123,7 @@ export default function App() {
       const page = await fetchRequests(endpoint.id, nextCursor);
       setRequests((prev) => [...prev, ...page.items]);
       setNextCursor(page.nextCursor);
+      setDroppedCount(page.droppedCount);
     } catch {
       setError('Could not load more requests.');
     } finally {
@@ -163,6 +167,12 @@ export default function App() {
             <EmptyState url={url!} />
           ) : (
             <>
+              {droppedCount > 0 && (
+                <p className="app__dropped-notice">
+                  {droppedCount} older {droppedCount === 1 ? 'request was' : 'requests were'} discarded to stay under
+                  the per-endpoint storage limit.
+                </p>
+              )}
               <RequestList requests={requests} selectedId={selectedId} onSelect={setSelectedId} newIds={newIds} />
               {nextCursor && (
                 <button type="button" className="app__load-more" onClick={handleLoadMore} disabled={loadingMore}>

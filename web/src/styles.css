@@ -82,6 +82,12 @@ pre {
   margin-top: 32px;
 }
 
+.app__dropped-notice {
+  color: var(--text-dimmer);
+  font-size: 12px;
+  margin: 0 0 10px;
+}
+
 /* URL panel */
 
 .url-panel {
