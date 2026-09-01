@@ -115,6 +115,13 @@ async function handleWebhook(req: WebhookRequest, reply: FastifyReply) {
     reply.code(410).send({ error: 'endpoint expired' });
     return;
   }
+  if (status === 'disabled') {
+    // Same response as `missing`, deliberately: a caller (or whoever is
+    // abusing the endpoint) shouldn't be able to tell "disabled by an
+    // operator" apart from "never existed".
+    reply.code(404).send({ error: 'endpoint not found' });
+    return;
+  }
 
   // Independent of the per-IP capture limit: a flood spread across many IPs
   // or many endpoints would sail past that but could still fill the disk.
