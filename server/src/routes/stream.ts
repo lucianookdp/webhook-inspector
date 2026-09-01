@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import * as config from '../config.js';
 import { getEndpointStatus } from '../endpointStatus.js';
 import { subscribeToRequests } from '../events.js';
 import { releaseSseSlot, tryAcquireSseSlot } from '../sseLimiter.js';
@@ -36,8 +37,12 @@ export async function streamRoutes(app: FastifyInstance) {
 
       // @fastify/cors sets its headers on the reply's onSend hook, which never
       // runs once the response is hijacked below — so the CORS header has to be
-      // set by hand here, mirroring the same WEB_ORIGIN configuration.
-      const allowOrigin = process.env.WEB_ORIGIN ?? req.headers.origin ?? '*';
+      // set by hand here, mirroring the same config.webOrigin used for the
+      // main CORS registration in index.js. config.webOrigin is only ever
+      // `true` (reflect the caller's Origin) outside production — config.ts
+      // refuses to boot otherwise — so the '*' fallback below only matters
+      // for a dev-mode request that somehow carries no Origin header at all.
+      const allowOrigin = config.webOrigin === true ? (req.headers.origin ?? '*') : config.webOrigin;
 
       reply.raw.writeHead(200, {
         'Content-Type': 'text/event-stream',
