@@ -4,6 +4,27 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Webhook Inspector</title>
+    <!--
+      no-referrer matters specifically here: the endpoint id is the only
+      secret protecting an endpoint, and it lives in this page's URL. Without
+      this, following any link from the page would leak it to that site.
+    -->
+    <meta name="referrer" content="no-referrer" />
+    <!--
+      connect-src is the API origin this build was configured with
+      (VITE_API_BASE, replaced at build time) — everything else stays
+      same-origin. There's no frame-ancestors here: the CSP spec has
+      browsers ignore that directive when it's delivered via <meta> rather
+      than a real response header, so it would be a no-op that looks like
+      clickjacking protection without providing any. X-Content-Type-Options,
+      X-Frame-Options and the rest of the non-CSP headers are set by the API
+      in server/src/index.ts; a static host serving this page has no
+      equivalent place to set them (see the README's deployment notes).
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' %VITE_API_BASE%; base-uri 'self'; form-action 'self'"
+    />
   </head>
   <body>
     <div id="root"></div>
