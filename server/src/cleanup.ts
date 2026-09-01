@@ -16,7 +16,7 @@ async function purgeExpiredEndpoints(log: FastifyBaseLogger) {
   }
 }
 
-export function startExpiredEndpointCleanup(log: FastifyBaseLogger) {
+export function startExpiredEndpointCleanup(log: FastifyBaseLogger): NodeJS.Timeout {
   void purgeExpiredEndpoints(log);
-  setInterval(() => void purgeExpiredEndpoints(log), CLEANUP_INTERVAL_MS);
+  return setInterval(() => void purgeExpiredEndpoints(log), CLEANUP_INTERVAL_MS);
 }
