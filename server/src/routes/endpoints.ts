@@ -1,9 +1,19 @@
 import type { FastifyInstance } from 'fastify';
 import { pool } from '../db.js';
+import { decodeCursor, encodeCursor } from '../cursor.js';
 import { getEndpointStatus } from '../endpointStatus.js';
 import { generateId } from '../id.js';
+import type { RequestRow } from '../types.js';
 
 const ENDPOINT_TTL_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_PAGE_LIMIT = 50;
+const MAX_PAGE_LIMIT = 100;
+
+function parseLimit(raw: string | undefined): number {
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1) return DEFAULT_PAGE_LIMIT;
+  return Math.min(n, MAX_PAGE_LIMIT);
+}
 
 export async function endpointRoutes(app: FastifyInstance) {
   app.post('/api/endpoints', async (_req, reply) => {
@@ -15,25 +25,56 @@ export async function endpointRoutes(app: FastifyInstance) {
     reply.code(201).send({ id, expiresAt: expiresAt.toISOString() });
   });
 
-  app.get<{ Params: { id: string } }>('/api/endpoints/:id/requests', async (req, reply) => {
-    const status = await getEndpointStatus(req.params.id);
-    if (status === 'missing') {
-      reply.code(404).send({ error: 'endpoint not found' });
-      return;
-    }
-    if (status === 'expired') {
-      reply.code(410).send({ error: 'endpoint expired' });
-      return;
-    }
+  app.get<{ Params: { id: string }; Querystring: { limit?: string; cursor?: string } }>(
+    '/api/endpoints/:id/requests',
+    async (req, reply) => {
+      const status = await getEndpointStatus(req.params.id);
+      if (status === 'missing') {
+        reply.code(404).send({ error: 'endpoint not found' });
+        return;
+      }
+      if (status === 'expired') {
+        reply.code(410).send({ error: 'endpoint expired' });
+        return;
+      }
 
-    const { rows } = await pool.query(
-      `SELECT id, method, path, query, headers, body, body_is_binary, truncated, content_type, ip, size_bytes, received_at
-       FROM requests
-       WHERE endpoint_id = $1
-       ORDER BY received_at DESC`,
-      [req.params.id],
-    );
+      const limit = parseLimit(req.query.limit);
+      const columns =
+        'id, method, path, query, headers, body, body_is_binary, truncated, content_type, ip, size_bytes, received_at';
 
-    reply.send(rows);
-  });
+      let rows: RequestRow[];
+      if (req.query.cursor) {
+        const cursor = decodeCursor(req.query.cursor);
+        if (!cursor) {
+          reply.code(400).send({ error: 'invalid cursor' });
+          return;
+        }
+        ({ rows } = await pool.query<RequestRow>(
+          `SELECT ${columns}
+           FROM requests
+           WHERE endpoint_id = $1 AND (received_at, id) < ($2, $3)
+           ORDER BY received_at DESC, id DESC
+           LIMIT $4`,
+          [req.params.id, cursor.receivedAt, cursor.id, limit + 1],
+        ));
+      } else {
+        ({ rows } = await pool.query<RequestRow>(
+          `SELECT ${columns}
+           FROM requests
+           WHERE endpoint_id = $1
+           ORDER BY received_at DESC, id DESC
+           LIMIT $2`,
+          [req.params.id, limit + 1],
+        ));
+      }
+
+      // Fetching one extra row is how we know a next page exists without a
+      // separate COUNT query; it's dropped from the response either way.
+      const hasMore = rows.length > limit;
+      const items = hasMore ? rows.slice(0, limit) : rows;
+      const nextCursor = hasMore ? encodeCursor(items[items.length - 1]) : null;
+
+      reply.send({ items, nextCursor });
+    },
+  );
 }
