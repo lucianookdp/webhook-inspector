@@ -425,21 +425,43 @@ pre {
   margin-bottom: 16px;
 }
 
-.request-detail__section {
-  margin-bottom: 16px;
+.request-detail__tabs {
+  display: flex;
+  gap: 2px;
+  margin-top: 4px;
 }
 
-.request-detail__section:last-child {
-  margin-bottom: 0;
+.request-detail__tab {
+  padding: 6px 14px;
+  font-size: 12px;
+  color: var(--text-dim);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 3px 3px 0 0;
 }
 
-.request-detail__section h3 {
-  margin: 0 0 6px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-dimmer);
-  font-weight: 600;
+.request-detail__tab--active {
+  color: var(--text);
+  background: var(--bg-elevated);
+}
+
+.request-detail__panel {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 0 3px 3px 3px;
+  padding: 14px;
+}
+
+.request-detail__panel-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.request-detail__copy {
+  font-size: 12px;
+  padding: 4px 10px;
 }
 
 .request-detail__empty-body,
@@ -449,17 +471,87 @@ pre {
   margin: 0;
 }
 
+.request-detail__binary + .json-view {
+  margin-top: 8px;
+}
+
+.kv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+.kv-table tr + tr {
+  border-top: 1px solid var(--border);
+}
+
+.kv-table__key,
+.kv-table__value {
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+  word-break: break-word;
+}
+
+.kv-table__key {
+  color: var(--text);
+  font-weight: 600;
+  width: 30%;
+  white-space: nowrap;
+}
+
+.kv-table__value {
+  color: var(--text-dim);
+}
+
 .json-view {
   margin: 0;
-  padding: 12px 14px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 3px;
+  padding: 0;
   font-size: 12.5px;
   line-height: 1.7;
   color: var(--text-dimmer);
   overflow-x: auto;
   white-space: pre;
+}
+
+.json-view--tree {
+  white-space: normal;
+}
+
+.json-children {
+  padding-left: 18px;
+}
+
+.json-toggle {
+  padding: 0;
+  margin-right: 2px;
+  width: 14px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text-dimmer);
+  background: transparent;
+  border: none;
+  vertical-align: middle;
+}
+
+.json-toggle:hover {
+  color: var(--text-dim);
+  border-color: transparent;
+}
+
+.json-bracket {
+  color: var(--text-dimmer);
+}
+
+.json-collapsed-summary {
+  color: var(--text-dimmer);
+  font-style: italic;
+}
+
+.json-truncated {
+  color: var(--text-dimmer);
+  font-style: italic;
 }
 
 .json-key {
