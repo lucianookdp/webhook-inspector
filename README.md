@@ -42,6 +42,17 @@ request with a forged `X-Forwarded-For` header and confirm the `ip`
 recorded on the resulting captured request is still your real address, not
 the forged one.
 
+### Database roles
+
+The app's `DATABASE_URL` should connect as a role with only `SELECT`,
+`INSERT` and `DELETE` on the `endpoints` and `requests` tables — no DDL, no
+superuser. `server/sql/roles.sql` creates that role once, run by an
+admin/owner role; `npm run migrate` (which applies `schema.sql`, including
+`CREATE TABLE`/`ALTER TABLE`) runs under that owner role via
+`MIGRATION_DATABASE_URL`, kept separate from the app's own connection. For a
+single-role local database, both variables can point at the same
+connection string and `MIGRATION_DATABASE_URL` can be left unset.
+
 `web/.env` (optional, defaults to `http://localhost:3001`):
 
 ```
