@@ -96,7 +96,7 @@ app.register(endpointRoutes);
 app.register(streamRoutes);
 app.register(webhookRoutes);
 
-startExpiredEndpointCleanup();
+startExpiredEndpointCleanup(app.log);
 startResourceUsageTracking(app.log);
 
 app.listen({ port: config.port, host: '0.0.0.0' }).catch((err) => {
