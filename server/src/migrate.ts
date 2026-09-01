@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Client } from 'pg';
+import { buildDatabaseSsl } from './tls.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Lives outside src/dist (server/migrations, not server/src/migrations) so
@@ -20,9 +21,14 @@ if (!connectionString) {
   throw new Error('MIGRATION_DATABASE_URL (or DATABASE_URL) is not set');
 }
 
+const insecureTls = process.env.DATABASE_INSECURE_TLS === 'true';
+if (insecureTls) {
+  console.warn('DATABASE_INSECURE_TLS=true — TLS certificate verification is disabled for this migration run.');
+}
+
 const client = new Client({
   connectionString,
-  ssl: connectionString.includes('localhost') ? false : { rejectUnauthorized: false },
+  ssl: buildDatabaseSsl(connectionString, { insecureTls, caCert: process.env.DATABASE_CA_CERT }),
 });
 
 async function run() {
