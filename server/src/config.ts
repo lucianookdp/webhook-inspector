@@ -52,6 +52,24 @@ export const port = int('PORT', 3000);
 export const databaseUrl = required('DATABASE_URL');
 export const redisUrl = process.env.REDIS_URL;
 
+// PEM contents of a CA certificate to trust in addition to Node's default
+// trust store — for a provider whose certificate chain isn't signed by a
+// publicly-trusted CA. Most managed Postgres providers don't need this;
+// plain certificate verification (the default below) already works against
+// their publicly-trusted certs.
+export const databaseCaCert = process.env.DATABASE_CA_CERT;
+
+// Disables certificate verification entirely. This must never be the
+// default — an unverified TLS connection doesn't stop a network-level
+// attacker from reading or altering every query and every captured
+// request — so it only takes effect when explicitly opted into, and loudly.
+export const databaseInsecureTls = process.env.DATABASE_INSECURE_TLS === 'true';
+if (databaseInsecureTls) {
+  console.warn(
+    'DATABASE_INSECURE_TLS=true — database TLS certificate verification is disabled. This should never be set in production.',
+  );
+}
+
 // Comma-separated IP/CIDR of the reverse proxy actually in front of this
 // process; see index.js for why a bare hop count isn't accepted here.
 export const trustProxy = (process.env.TRUST_PROXY ?? '127.0.0.1,::1').split(',').map((entry) => entry.trim());

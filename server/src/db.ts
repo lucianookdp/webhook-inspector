@@ -1,10 +1,13 @@
 import { Pool } from 'pg';
 import * as config from './config.js';
+import { buildDatabaseSsl } from './tls.js';
 
 export const pool = new Pool({
   connectionString: config.databaseUrl,
-  // Local Postgres usually has no SSL configured; hosted providers (Neon) require it.
-  ssl: config.databaseUrl.includes('localhost') ? false : { rejectUnauthorized: false },
+  ssl: buildDatabaseSsl(config.databaseUrl, {
+    insecureTls: config.databaseInsecureTls,
+    caCert: config.databaseCaCert,
+  }),
   // Bounds how many connections this process can hold open, so a burst of
   // slow requests can't starve every other query of a connection.
   max: config.databasePoolMax,
