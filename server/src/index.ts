@@ -1,9 +1,11 @@
+import { randomUUID } from 'node:crypto';
 import 'dotenv/config';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import Fastify from 'fastify';
 import { Redis } from 'ioredis';
 import { startExpiredEndpointCleanup } from './cleanup.js';
+import { registerErrorHandlers } from './errorHandlers.js';
 import { startResourceUsageTracking } from './limits.js';
 import { endpointRoutes } from './routes/endpoints.js';
 import { streamRoutes } from './routes/stream.js';
@@ -22,6 +24,10 @@ const trustProxy = (process.env.TRUST_PROXY ?? '127.0.0.1,::1').split(',').map((
 const app = Fastify({
   logger: true,
   trustProxy,
+  // The default request id is a per-process counter (e.g. "req-1"), which
+  // collides across instances and restarts — exactly where a correlation id
+  // in an error response needs to keep pointing at the right log line.
+  genReqId: () => randomUUID(),
   // The bounded stream parser drains every byte of an incoming body no
   // matter how slowly it arrives, so without a ceiling a client trickling
   // data could hold a connection — and the worker handling it — open
@@ -42,6 +48,7 @@ const app = Fastify({
   },
 });
 app.log.info({ trustProxy }, 'trustProxy configured');
+registerErrorHandlers(app);
 
 // The web client and API live on different origins even in production
 // (Vercel + Fly.io), so CORS is always needed, not just in dev.
