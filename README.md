@@ -1,5 +1,7 @@
 # portaria
 
+[![CI](https://github.com/lucianookdp/webhook-inspector/actions/workflows/ci.yml/badge.svg)](https://github.com/lucianookdp/webhook-inspector/actions/workflows/ci.yml)
+
 A disposable webhook inspector: generate a URL, register it with any service that fires webhooks, and watch requests arrive in real time with their full content formatted.
 
 ![portaria](screenshot.png)
