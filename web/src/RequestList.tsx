@@ -1,4 +1,4 @@
-import { formatBytes, formatRelativeTime } from './format';
+import { formatBytes, formatRelativeTime, methodClass } from './format';
 import { JsonView } from './JsonView';
 import type { RequestRow } from './types';
 
@@ -66,11 +66,13 @@ export function RequestList({
   selectedId,
   onSelect,
   newIds,
+  now,
 }: {
   requests: RequestRow[];
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   newIds: Set<string>;
+  now: number;
 }) {
   return (
     <div className="request-list">
@@ -91,10 +93,22 @@ export function RequestList({
             onClick={() => onSelect(selectedId === row.id ? null : row.id)}
             aria-expanded={selectedId === row.id}
           >
-            <span className="request-row__method">{row.method}</span>
-            <span className="request-row__path">{row.path}</span>
+            <span className={`request-row__method ${methodClass(row.method)}`}>{row.method}</span>
+            <span className="request-row__path">
+              {row.path}
+              {row.truncated && (
+                <span className="request-row__flag" title="Body was truncated to 256 KB">
+                  truncated
+                </span>
+              )}
+              {row.body_is_binary && (
+                <span className="request-row__flag" title="Body stored as base64-encoded binary">
+                  binary
+                </span>
+              )}
+            </span>
             <span className="request-row__size">{formatBytes(row.size_bytes)}</span>
-            <span className="request-row__time">{formatRelativeTime(row.received_at)}</span>
+            <span className="request-row__time">{formatRelativeTime(row.received_at, now)}</span>
           </button>
           {selectedId === row.id && <RequestDetail row={row} />}
         </div>

@@ -248,7 +248,13 @@ export default function App() {
                   the per-endpoint storage limit.
                 </p>
               )}
-              <RequestList requests={requests} selectedId={selectedId} onSelect={setSelectedId} newIds={newIds} />
+              <RequestList
+                requests={requests}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                newIds={newIds}
+                now={now}
+              />
               {nextCursor && (
                 <button type="button" className="app__load-more" onClick={handleLoadMore} disabled={loadingMore}>
                   {loadingMore ? 'Loading...' : 'Load more'}
