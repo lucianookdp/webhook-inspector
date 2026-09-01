@@ -80,6 +80,19 @@ Open `http://localhost:5173`.
 
 SSE was chosen over WebSockets because the data only flows one way, server to browser — SSE gets that over plain HTTP, with reconnection handled by the browser instead of hand-rolled protocol code on both ends. Endpoints expire after 24 hours because a disposable inspector has no business holding onto someone else's request bodies, headers, and tokens past the debugging session they were captured for; a hard expiry keeps that data from quietly becoming a long-term store.
 
+### Why the caller's IP is stored
+
+Every captured request records the caller's IP, truncated to its /24
+network for IPv4 or /48 for IPv6 (the last octet, or the last 80 bits,
+zeroed) rather than the exact address. It's kept because it's genuinely
+useful while debugging a webhook integration — checking that requests are
+actually arriving from a provider's documented IP range, or telling two
+different sources apart when more than one is hitting the same endpoint —
+and the truncation is enough for both without pinning down an individual
+caller. Like every other captured field, it's deleted along with its
+endpoint after 24 hours; it never outlives the debugging session it was
+captured for.
+
 ## Abuse handling
 
 This is a public, unauthenticated write endpoint — anyone who has (or

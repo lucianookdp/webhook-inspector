@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { pool } from '../db.js';
 import { getEndpointStatus } from '../endpointStatus.js';
 import { publishRequest } from '../events.js';
+import { maskIp } from '../ip.js';
 import { isStorageCeilingReached } from '../limits.js';
 import { endpointIdParamsSchema } from '../schemas.js';
 import type { RequestRow } from '../types.js';
@@ -190,7 +191,11 @@ async function handleWebhook(req: WebhookRequest, reply: FastifyReply) {
     isBinary,
     captured.truncated,
     req.headers['content-type'] ?? null,
-    req.ip,
+    // Truncated rather than the exact address: enough to match a known
+    // provider's IP range or tell two sources apart while debugging,
+    // without this disposable inspector holding onto a precise address —
+    // see the README's note on why this is kept at all.
+    maskIp(req.ip) ?? null,
     captured.totalBytes,
   ]);
 

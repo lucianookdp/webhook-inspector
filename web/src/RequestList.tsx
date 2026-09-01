@@ -18,7 +18,7 @@ function RequestDetail({ row }: { row: RequestRow }) {
     <div className="request-detail">
       <div className="request-detail__meta">
         <span>{new Date(row.received_at).toISOString()}</span>
-        <span>{row.ip ?? 'unknown ip'}</span>
+        <span title="Truncated to its /24 (IPv4) or /48 (IPv6) network — see the README">{row.ip ?? 'unknown ip'}</span>
         <span>{row.content_type ?? 'no content-type'}</span>
         <span>{formatBytes(row.size_bytes)}</span>
       </div>
