@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { getEndpointStatus } from '../endpointStatus.js';
 import { subscribeToRequests } from '../events.js';
+import { releaseSseSlot, tryAcquireSseSlot } from '../sseLimiter.js';
 
 const HEARTBEAT_MS = 25_000;
 
@@ -21,6 +22,11 @@ export async function streamRoutes(app: FastifyInstance) {
       }
       if (status === 'expired') {
         reply.code(410).send({ error: 'endpoint expired' });
+        return;
+      }
+
+      if (!tryAcquireSseSlot(id, req.ip)) {
+        reply.code(429).send({ error: 'too many open connections, try again later' });
         return;
       }
 
@@ -47,6 +53,7 @@ export async function streamRoutes(app: FastifyInstance) {
       req.raw.on('close', () => {
         clearInterval(heartbeat);
         unsubscribe();
+        releaseSseSlot(id, req.ip);
       });
 
       reply.hijack();
