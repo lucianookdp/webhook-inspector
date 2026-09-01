@@ -302,8 +302,49 @@ pre {
 }
 
 .request-row__method {
+  justify-self: start;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border-radius: 3px;
+  border: 1px solid transparent;
+}
+
+.request-row__method--get {
+  color: #7fb8c4;
+  background: rgba(127, 184, 196, 0.12);
+  border-color: rgba(127, 184, 196, 0.3);
+}
+
+.request-row__method--post {
   color: var(--accent);
-  font-weight: 600;
+  background: rgba(217, 154, 63, 0.12);
+  border-color: rgba(217, 154, 63, 0.3);
+}
+
+.request-row__method--put {
+  color: #93a3e0;
+  background: rgba(147, 163, 224, 0.12);
+  border-color: rgba(147, 163, 224, 0.3);
+}
+
+.request-row__method--patch {
+  color: #b993e0;
+  background: rgba(185, 147, 224, 0.12);
+  border-color: rgba(185, 147, 224, 0.3);
+}
+
+.request-row__method--delete {
+  color: #d97f7f;
+  background: rgba(217, 127, 127, 0.12);
+  border-color: rgba(217, 127, 127, 0.3);
+}
+
+.request-row__method--other {
+  color: var(--text-dim);
+  background: rgba(143, 141, 134, 0.12);
+  border-color: var(--border);
 }
 
 .request-row__path {
@@ -311,6 +352,20 @@ pre {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text);
+}
+
+.request-row__flag {
+  margin-left: 8px;
+  padding: 1px 6px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-dimmer);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
 }
 
 .request-row__size,

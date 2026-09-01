@@ -29,7 +29,7 @@ function baseRow(overrides: Partial<RequestRow>): RequestRow {
 
 function renderSelected(row: RequestRow): string {
   return renderToStaticMarkup(
-    <RequestList requests={[row]} selectedId={row.id} onSelect={() => {}} newIds={new Set()} />,
+    <RequestList requests={[row]} selectedId={row.id} onSelect={() => {}} newIds={new Set()} now={Date.now()} />,
   );
 }
 
