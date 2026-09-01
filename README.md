@@ -13,7 +13,20 @@ Requirements: Node 20+, a Postgres database (this project targets [Neon](https:/
 ```
 DATABASE_URL=postgres://user:password@host/dbname?sslmode=require
 PORT=3001
+TRUST_PROXY=127.0.0.1,::1
 ```
+
+`TRUST_PROXY` is a comma-separated list of the reverse proxy IP(s)/CIDR(s)
+actually in front of this process; only an `X-Forwarded-For` relayed by one
+of those addresses is trusted. It gates `req.ip`, which every per-IP rate
+limit is keyed on: too broad a value (or `true`) lets a caller forge the
+header and reset their own limit. A bare hop count isn't accepted either —
+it can't validate who the immediate peer is. Defaults to loopback, correct
+for local development; in production, set it to your platform's actual
+proxy address rather than guessing. After deploying, verify it: send a
+request with a forged `X-Forwarded-For` header and confirm the `ip`
+recorded on the resulting captured request is still your real address, not
+the forged one.
 
 `web/.env` (optional, defaults to `http://localhost:3001`):
 
