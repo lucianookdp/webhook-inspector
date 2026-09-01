@@ -70,6 +70,48 @@ function boundedStreamParser(
 // below what a flood aimed at a public, unauthenticated URL would send.
 const CAPTURE_RATE_LIMIT = { max: 100, timeWindow: '1 minute' };
 
+// Ceiling per endpoint, independent of the 24h TTL: a provider retrying
+// aggressively against a debugging session nobody is watching could
+// otherwise accumulate an unbounded number of rows before it expires.
+const MAX_REQUESTS_PER_ENDPOINT = 500;
+
+// Inserts the new row and, in the same transaction, trims anything beyond
+// the newest MAX_REQUESTS_PER_ENDPOINT for that endpoint — tallying what got
+// trimmed onto endpoints.dropped_count so the UI can say requests were
+// discarded rather than just show fewer rows than were actually sent.
+async function insertAndTrim(
+  values: [string, string, string, string, string, string, boolean, boolean, string | null, string | null, number],
+): Promise<RequestRow> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query<RequestRow>(
+      `INSERT INTO requests
+         (endpoint_id, method, path, query, headers, body, body_is_binary, truncated, content_type, ip, size_bytes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       RETURNING id, method, path, query, headers, body, body_is_binary, truncated, content_type, ip, size_bytes, received_at`,
+      values,
+    );
+    await client.query(
+      `WITH ranked AS (
+         SELECT id, row_number() OVER (ORDER BY received_at DESC, id DESC) AS rn
+         FROM requests WHERE endpoint_id = $1
+       ), deleted AS (
+         DELETE FROM requests WHERE id IN (SELECT id FROM ranked WHERE rn > $2) RETURNING id
+       )
+       UPDATE endpoints SET dropped_count = dropped_count + (SELECT count(*) FROM deleted) WHERE id = $1`,
+      [values[0], MAX_REQUESTS_PER_ENDPOINT],
+    );
+    await client.query('COMMIT');
+    return rows[0];
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 export async function webhookRoutes(app: FastifyInstance) {
   // Fastify's built-in json/text parsers reject malformed bodies before the
   // handler runs, so they're overridden here alongside the catch-all — every
@@ -106,7 +148,7 @@ export async function webhookRoutes(app: FastifyInstance) {
 async function handleWebhook(req: WebhookRequest, reply: FastifyReply) {
   const { id } = req.params;
 
-  const status = await getEndpointStatus(id);
+  const { status } = await getEndpointStatus(id);
   if (status === 'missing') {
     reply.code(404).send({ error: 'endpoint not found' });
     return;
@@ -138,26 +180,20 @@ async function handleWebhook(req: WebhookRequest, reply: FastifyReply) {
   const { body, isBinary } = decodeBody(captured.data);
   const pathname = new URL(req.url, 'http://portaria.local').pathname;
 
-  const { rows } = await pool.query<RequestRow>(
-    `INSERT INTO requests
-       (endpoint_id, method, path, query, headers, body, body_is_binary, truncated, content_type, ip, size_bytes)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-     RETURNING id, method, path, query, headers, body, body_is_binary, truncated, content_type, ip, size_bytes, received_at`,
-    [
-      id,
-      req.method,
-      pathname,
-      JSON.stringify(req.query ?? {}),
-      JSON.stringify(req.headers ?? {}),
-      body,
-      isBinary,
-      captured.truncated,
-      req.headers['content-type'] ?? null,
-      req.ip,
-      captured.totalBytes,
-    ],
-  );
+  const row = await insertAndTrim([
+    id,
+    req.method,
+    pathname,
+    JSON.stringify(req.query ?? {}),
+    JSON.stringify(req.headers ?? {}),
+    body,
+    isBinary,
+    captured.truncated,
+    req.headers['content-type'] ?? null,
+    req.ip,
+    captured.totalBytes,
+  ]);
 
-  publishRequest(id, rows[0]);
+  publishRequest(id, row);
   reply.code(200).send('ok');
 }

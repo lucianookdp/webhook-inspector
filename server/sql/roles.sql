@@ -13,10 +13,17 @@ CREATE ROLE webhook_inspector_app WITH LOGIN PASSWORD '<choose-a-strong-password
 GRANT CONNECT ON DATABASE <database_name> TO webhook_inspector_app;
 GRANT USAGE ON SCHEMA public TO webhook_inspector_app;
 
--- INSERT, SELECT, DELETE only: the app never updates a row in place, and it
--- must not be able to run DDL (CREATE, ALTER, DROP) even if a bug or a
--- future SQL-construction mistake ever gave an attacker a way to try.
+-- INSERT, SELECT, DELETE only: the app doesn't otherwise update a row in
+-- place, and it must not be able to run DDL (CREATE, ALTER, DROP) even if a
+-- bug or a future SQL-construction mistake ever gave an attacker a way to
+-- try.
 GRANT SELECT, INSERT, DELETE ON endpoints, requests TO webhook_inspector_app;
+
+-- One narrow exception: capping requests per endpoint (webhook.ts) tallies
+-- how many rows it trims onto endpoints.dropped_count. A column-level grant
+-- keeps this to exactly that counter — the role still can't touch id,
+-- expires_at or disabled.
+GRANT UPDATE (dropped_count) ON endpoints TO webhook_inspector_app;
 
 -- No sequence grants needed: endpoints.id is an application-generated text
 -- id and requests.id defaults to gen_random_uuid(), so nothing here reads

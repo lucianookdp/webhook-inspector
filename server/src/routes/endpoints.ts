@@ -52,7 +52,7 @@ export async function endpointRoutes(app: FastifyInstance) {
       schema: { params: endpointIdParamsSchema, querystring: requestsQuerystringSchema },
     },
     async (req, reply) => {
-      const status = await getEndpointStatus(req.params.id);
+      const { status, droppedCount } = await getEndpointStatus(req.params.id);
       if (status === 'missing') {
         reply.code(404).send({ error: 'endpoint not found' });
         return;
@@ -98,7 +98,7 @@ export async function endpointRoutes(app: FastifyInstance) {
       const items = hasMore ? rows.slice(0, limit) : rows;
       const nextCursor = hasMore ? encodeCursor(items[items.length - 1]) : null;
 
-      reply.send({ items, nextCursor });
+      reply.send({ items, nextCursor, droppedCount });
     },
   );
 }

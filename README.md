@@ -46,9 +46,11 @@ the forged one.
 
 The app's `DATABASE_URL` should connect as a role with only `SELECT`,
 `INSERT` and `DELETE` on the `endpoints` and `requests` tables — no DDL, no
-superuser. `server/sql/roles.sql` creates that role once, run by an
-admin/owner role; `npm run migrate` (which applies `schema.sql`, including
-`CREATE TABLE`/`ALTER TABLE`) runs under that owner role via
+superuser — plus a column-level `UPDATE` on `endpoints.dropped_count` (the
+one counter the app updates in place, when capping requests per endpoint).
+`server/sql/roles.sql` creates that role once, run by an admin/owner role;
+`npm run migrate` (which applies the files under `server/migrations`,
+including `CREATE TABLE`/`ALTER TABLE`) runs under that owner role via
 `MIGRATION_DATABASE_URL`, kept separate from the app's own connection. For a
 single-role local database, both variables can point at the same
 connection string and `MIGRATION_DATABASE_URL` can be left unset.

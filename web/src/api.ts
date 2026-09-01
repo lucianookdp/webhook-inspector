@@ -24,6 +24,7 @@ export async function createEndpoint(): Promise<EndpointInfo> {
 export interface RequestsPage {
   items: RequestRow[];
   nextCursor: string | null;
+  droppedCount: number;
 }
 
 export async function fetchRequests(endpointId: string, cursor?: string): Promise<RequestsPage> {
