@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import 'dotenv/config';
 import cors from '@fastify/cors';
+import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import Fastify from 'fastify';
 import { Redis } from 'ioredis';
@@ -55,6 +56,16 @@ registerErrorHandlers(app);
 // (Vercel + Fly.io), so CORS is always needed, not just in dev.
 await app.register(cors, {
   origin: process.env.WEB_ORIGIN ?? true,
+});
+
+// This API only ever returns JSON, never HTML, so a content-security-policy
+// header here has nothing to defend — the frontend's own CSP and referrer
+// meta tags (web/index.html) are what actually matter for a page URL that
+// carries the endpoint id. The rest of helmet's defaults still apply here,
+// including X-Content-Type-Options: nosniff and X-Frame-Options: DENY.
+await app.register(helmet, {
+  contentSecurityPolicy: false,
+  frameguard: { action: 'deny' },
 });
 
 // The default in-memory store resets on every deploy and doesn't apply
