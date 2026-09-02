@@ -152,6 +152,55 @@ pre {
   }
 }
 
+/* Endpoint name (slug) */
+
+.endpoint-slug {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-dimmer);
+}
+
+.endpoint-slug__link {
+  padding: 2px 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.endpoint-slug__link:hover {
+  color: var(--text);
+  border-color: transparent;
+}
+
+.endpoint-slug__input {
+  padding: 5px 8px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  min-width: 200px;
+}
+
+.endpoint-slug__input:focus-visible {
+  outline: 1px solid var(--text-dim);
+  outline-offset: 1px;
+}
+
+.endpoint-slug__error {
+  margin: 0;
+  color: var(--accent);
+  font-size: 12px;
+}
+
 /* Signing secret */
 
 .signing-secret {

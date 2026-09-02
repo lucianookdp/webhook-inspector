@@ -37,6 +37,7 @@ export interface RequestsPage {
   droppedCount: number;
   signingSecretConfigured: boolean;
   responseConfig: ResponseConfig;
+  slug: string | null;
 }
 
 export async function fetchRequests(endpointId: string, cursor?: string): Promise<RequestsPage> {
@@ -68,6 +69,20 @@ export async function setResponseConfig(endpointId: string, config: ResponseConf
     body: JSON.stringify(config),
   });
   if (!res.ok) throw new ApiError(res.status, `failed to update response config: ${res.status}`);
+}
+
+export async function setSlug(endpointId: string, slug: string | null): Promise<string | null> {
+  const res = await fetch(`${API_BASE}/api/endpoints/${endpointId}/slug`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug }),
+  });
+  const data = await res.json().catch(() => undefined);
+  if (!res.ok) {
+    const message = data && typeof data.error === 'string' ? data.error : `failed to update name: ${res.status}`;
+    throw new ApiError(res.status, message);
+  }
+  return (data as { slug: string | null }).slug;
 }
 
 export interface ForwardResult {

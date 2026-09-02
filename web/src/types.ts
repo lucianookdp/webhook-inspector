@@ -1,6 +1,7 @@
 export interface EndpointInfo {
   id: string;
   expiresAt: string;
+  slug: string | null;
 }
 
 export type SignatureStatus = 'unconfigured' | 'unknown' | 'no-header' | 'valid' | 'invalid';

@@ -33,6 +33,10 @@ GRANT UPDATE (signing_secret) ON endpoints TO webhook_inspector_app;
 -- their endpoint (routes/endpoints.js) updates exactly these three.
 GRANT UPDATE (response_status, response_body, response_content_type) ON endpoints TO webhook_inspector_app;
 
+-- A fourth: a user picking a memorable name for their capture URL
+-- (routes/endpoints.js) updates exactly that column.
+GRANT UPDATE (slug) ON endpoints TO webhook_inspector_app;
+
 -- No sequence grants needed: endpoints.id is an application-generated text
 -- id and requests.id defaults to gen_random_uuid(), so nothing here reads
 -- from a sequence.
