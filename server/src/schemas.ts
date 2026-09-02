@@ -22,3 +22,28 @@ export const requestsQuerystringSchema = {
     cursor: { type: 'string', maxLength: 512 },
   },
 } as const;
+
+// requests.id is a Postgres uuid (see migrations/0001_init.sql); this
+// matches its canonical text form.
+export const forwardParamsSchema = {
+  type: 'object',
+  required: ['id', 'requestId'],
+  properties: {
+    id: { type: 'string', pattern: '^[A-Za-z0-9]{12}$' },
+    requestId: {
+      type: 'string',
+      pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    },
+  },
+} as const;
+
+// Just a first-line-of-defense length/shape check — routes/forward.js does
+// the semantic validation (a real, parseable, http(s) URL) that a schema
+// can't express, and ssrf.js validates where it actually resolves to.
+export const forwardBodySchema = {
+  type: 'object',
+  required: ['url'],
+  properties: {
+    url: { type: 'string', minLength: 1, maxLength: 2048 },
+  },
+} as const;

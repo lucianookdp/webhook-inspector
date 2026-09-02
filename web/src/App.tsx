@@ -338,6 +338,7 @@ export default function App() {
                 onSelect={setSelectedId}
                 newIds={newIds}
                 now={now}
+                endpointId={endpoint.id}
               />
               {nextCursor && (
                 <button type="button" className="app__load-more" onClick={handleLoadMore} disabled={loadingMore}>
