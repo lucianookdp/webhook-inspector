@@ -51,6 +51,10 @@ export async function streamRoutes(app: FastifyInstance) {
         Connection: 'keep-alive',
         'Access-Control-Allow-Origin': allowOrigin,
       });
+      // Node buffers the header block until the first write() otherwise, so a
+      // client sitting on an empty stream (nothing captured yet, heartbeat
+      // 25s away) never sees the connection open.
+      reply.raw.flushHeaders();
 
       registerSseConnection(reply.raw);
 
