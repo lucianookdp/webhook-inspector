@@ -2,10 +2,16 @@ import { buildApp } from './app.js';
 import { startExpiredEndpointCleanup } from './cleanup.js';
 import * as config from './config.js';
 import { pool } from './db.js';
+import { startEventListener, stopEventListener } from './events.js';
 import { startResourceUsageTracking } from './limits.js';
 import { closeAllSseConnections } from './sseRegistry.js';
 
 const app = await buildApp();
+
+// Awaited before .listen() below so the first requests this instance serves
+// aren't the ones most likely to race a not-yet-established LISTEN
+// connection (see events.js for why one is needed at all).
+await startEventListener(app.log);
 
 const cleanupInterval = startExpiredEndpointCleanup(app.log);
 startResourceUsageTracking(app.log);
@@ -37,6 +43,8 @@ async function shutdown(signal: string) {
   } catch (err) {
     app.log.error({ err }, 'error while closing server');
   }
+
+  await stopEventListener();
 
   try {
     await pool.end();
