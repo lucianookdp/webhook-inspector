@@ -60,6 +60,13 @@ export async function buildApp(): Promise<FastifyInstance> {
   // permissive `true` case here can only be reached in development.
   await app.register(cors, {
     origin: config.webOrigin,
+    // @fastify/cors defaults to GET,HEAD,POST only. That's too narrow twice
+    // over here: the signing-secret route needs PUT, and the capture route
+    // (routes/webhook.js) deliberately accepts *any* method via app.all() —
+    // "send any HTTP request" is the app's whole pitch, including one sent
+    // from a browser's own fetch() rather than a real server-to-server
+    // webhook delivery (which isn't subject to CORS at all).
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
   });
 
   // This API only ever returns JSON, never HTML, so a content-security-policy
