@@ -13,7 +13,6 @@ CREATE TABLE IF NOT EXISTS requests (
   headers jsonb NOT NULL DEFAULT '{}'::jsonb,
   body text,
   body_is_binary boolean NOT NULL DEFAULT false,
-  truncated boolean NOT NULL DEFAULT false,
   content_type text,
   ip text,
   size_bytes integer NOT NULL DEFAULT 0,
@@ -22,5 +21,3 @@ CREATE TABLE IF NOT EXISTS requests (
 
 CREATE INDEX IF NOT EXISTS requests_endpoint_id_received_at_idx
   ON requests (endpoint_id, received_at DESC);
-
-ALTER TABLE requests ADD COLUMN IF NOT EXISTS truncated boolean NOT NULL DEFAULT false;

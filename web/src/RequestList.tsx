@@ -1,82 +1,52 @@
+import { type KeyboardEvent, useRef } from 'react';
+import { formatBytes, formatRelativeTime, methodClass } from './format';
+import { RequestDetail } from './RequestDetail';
 import type { RequestRow } from './types';
-import { formatBytes, formatRelativeTime } from './format';
-import { JsonView } from './JsonView';
 
-function parseJsonBody(row: RequestRow): unknown | undefined {
-  if (row.body_is_binary || row.body === null || row.body === '') return undefined;
-  try {
-    return JSON.parse(row.body);
-  } catch {
-    return undefined;
-  }
-}
-
-function RequestDetail({ row }: { row: RequestRow }) {
-  const jsonBody = parseJsonBody(row);
-
-  return (
-    <div className="request-detail">
-      <div className="request-detail__meta">
-        <span>{new Date(row.received_at).toISOString()}</span>
-        <span>{row.ip ?? 'unknown ip'}</span>
-        <span>{row.content_type ?? 'no content-type'}</span>
-        <span>{formatBytes(row.size_bytes)}</span>
-      </div>
-
-      <section className="request-detail__section">
-        <h3>Headers</h3>
-        <JsonView value={row.headers} />
-      </section>
-
-      {Object.keys(row.query).length > 0 && (
-        <section className="request-detail__section">
-          <h3>Query</h3>
-          <JsonView value={row.query} />
-        </section>
-      )}
-
-      <section className="request-detail__section">
-        <h3>Body</h3>
-        {row.truncated && (
-          <p className="request-detail__binary">
-            truncated: actual body is {formatBytes(row.size_bytes)}, only the first 256 KB were stored
-          </p>
-        )}
-        {row.body_is_binary ? (
-          <>
-            <p className="request-detail__binary">binary content, {formatBytes(row.size_bytes)}, base64-encoded below</p>
-            <pre className="json-view">{row.body}</pre>
-          </>
-        ) : row.body === null || row.body === '' ? (
-          <pre className="request-detail__empty-body">(empty body)</pre>
-        ) : jsonBody !== undefined ? (
-          <JsonView value={jsonBody} />
-        ) : (
-          <pre className="json-view">{row.body}</pre>
-        )}
-      </section>
-    </div>
-  );
-}
+const ROW_NAV_KEYS = new Set(['ArrowDown', 'ArrowUp', 'Home', 'End']);
 
 export function RequestList({
   requests,
   selectedId,
   onSelect,
   newIds,
+  now,
+  endpointId,
 }: {
   requests: RequestRow[];
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   newIds: Set<string>;
+  now: number;
+  endpointId: string;
 }) {
+  const listRef = useRef<HTMLDivElement>(null);
+
+  function handleRowKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    if (!ROW_NAV_KEYS.has(event.key)) return;
+    const rows = Array.from(listRef.current?.querySelectorAll<HTMLButtonElement>('.request-row') ?? []);
+    const currentIndex = rows.indexOf(event.currentTarget);
+    if (currentIndex === -1) return;
+    event.preventDefault();
+
+    const nextIndex =
+      event.key === 'ArrowDown'
+        ? Math.min(currentIndex + 1, rows.length - 1)
+        : event.key === 'ArrowUp'
+          ? Math.max(currentIndex - 1, 0)
+          : event.key === 'Home'
+            ? 0
+            : rows.length - 1;
+    rows[nextIndex]?.focus();
+  }
+
   return (
-    <div className="request-list">
+    <div className="request-list" ref={listRef}>
       <div className="request-list__header">
         <span>Method</span>
         <span>Path</span>
-        <span>Size</span>
-        <span>Received</span>
+        <span className="request-list__header-size">Size</span>
+        <span className="request-list__header-received">Received</span>
       </div>
       {requests.map((row) => (
         <div
@@ -87,14 +57,37 @@ export function RequestList({
             type="button"
             className="request-row"
             onClick={() => onSelect(selectedId === row.id ? null : row.id)}
+            onKeyDown={handleRowKeyDown}
             aria-expanded={selectedId === row.id}
           >
-            <span className="request-row__method">{row.method}</span>
-            <span className="request-row__path">{row.path}</span>
-            <span className="request-row__size">{formatBytes(row.size_bytes)}</span>
-            <span className="request-row__time">{formatRelativeTime(row.received_at)}</span>
+            <span className={`request-row__method ${methodClass(row.method)}`}>{row.method}</span>
+            <span className="request-row__path">
+              {row.path}
+              {row.truncated && (
+                <span className="request-row__flag" title="Body was truncated to 256 KB">
+                  truncated
+                </span>
+              )}
+              {row.body_is_binary && (
+                <span className="request-row__flag" title="Body stored as base64-encoded binary">
+                  binary
+                </span>
+              )}
+              {row.signature === 'invalid' && (
+                <span
+                  className="request-row__flag request-row__flag--invalid"
+                  title="Signature does not match the configured secret"
+                >
+                  bad signature
+                </span>
+              )}
+            </span>
+            <span className="request-row__meta">
+              <span className="request-row__size">{formatBytes(row.size_bytes)}</span>
+              <span className="request-row__time">{formatRelativeTime(row.received_at, now)}</span>
+            </span>
           </button>
-          {selectedId === row.id && <RequestDetail row={row} />}
+          {selectedId === row.id && <RequestDetail row={row} endpointId={endpointId} />}
         </div>
       ))}
     </div>
