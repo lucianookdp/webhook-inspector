@@ -1,6 +1,9 @@
+import { type KeyboardEvent, useRef } from 'react';
 import { formatBytes, formatRelativeTime, methodClass } from './format';
 import { RequestDetail } from './RequestDetail';
 import type { RequestRow } from './types';
+
+const ROW_NAV_KEYS = new Set(['ArrowDown', 'ArrowUp', 'Home', 'End']);
 
 export function RequestList({
   requests,
@@ -15,8 +18,28 @@ export function RequestList({
   newIds: Set<string>;
   now: number;
 }) {
+  const listRef = useRef<HTMLDivElement>(null);
+
+  function handleRowKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    if (!ROW_NAV_KEYS.has(event.key)) return;
+    const rows = Array.from(listRef.current?.querySelectorAll<HTMLButtonElement>('.request-row') ?? []);
+    const currentIndex = rows.indexOf(event.currentTarget);
+    if (currentIndex === -1) return;
+    event.preventDefault();
+
+    const nextIndex =
+      event.key === 'ArrowDown'
+        ? Math.min(currentIndex + 1, rows.length - 1)
+        : event.key === 'ArrowUp'
+          ? Math.max(currentIndex - 1, 0)
+          : event.key === 'Home'
+            ? 0
+            : rows.length - 1;
+    rows[nextIndex]?.focus();
+  }
+
   return (
-    <div className="request-list">
+    <div className="request-list" ref={listRef}>
       <div className="request-list__header">
         <span>Method</span>
         <span>Path</span>
@@ -32,6 +55,7 @@ export function RequestList({
             type="button"
             className="request-row"
             onClick={() => onSelect(selectedId === row.id ? null : row.id)}
+            onKeyDown={handleRowKeyDown}
             aria-expanded={selectedId === row.id}
           >
             <span className={`request-row__method ${methodClass(row.method)}`}>{row.method}</span>
