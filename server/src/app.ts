@@ -7,6 +7,7 @@ import { Redis } from 'ioredis';
 import * as config from './config.js';
 import { registerErrorHandlers } from './errorHandlers.js';
 import { loggerOptions } from './logging.js';
+import { adminRoutes } from './routes/admin.js';
 import { endpointRoutes } from './routes/endpoints.js';
 import { forwardRoutes } from './routes/forward.js';
 import { healthRoutes } from './routes/health.js';
@@ -104,6 +105,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     skipOnError: true,
   });
 
+  app.register(adminRoutes);
   app.register(endpointRoutes);
   app.register(forwardRoutes);
   app.register(healthRoutes);

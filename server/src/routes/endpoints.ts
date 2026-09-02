@@ -12,6 +12,7 @@ import {
   slugBodySchema,
 } from '../schemas.js';
 import { computeSignatureStatus } from '../signature.js';
+import { recordEndpointCreated } from '../stats.js';
 import type { RequestRow } from '../types.js';
 
 const ENDPOINT_TTL_MS = 24 * 60 * 60 * 1000;
@@ -44,6 +45,7 @@ export async function endpointRoutes(app: FastifyInstance) {
       const expiresAt = new Date(Date.now() + ENDPOINT_TTL_MS);
 
       await pool.query('INSERT INTO endpoints (id, expires_at) VALUES ($1, $2)', [id, expiresAt]);
+      await recordEndpointCreated();
 
       reply.code(201).send({ id, expiresAt: expiresAt.toISOString(), slug: null });
     },
