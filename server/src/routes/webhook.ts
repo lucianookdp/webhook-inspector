@@ -5,6 +5,7 @@ import { publishRequest } from '../events.js';
 import { maskIp } from '../ip.js';
 import { isStorageCeilingReached } from '../limits.js';
 import { captureIdentifierParamsSchema } from '../schemas.js';
+import { recordRequestCaptured } from '../stats.js';
 import type { RequestRow } from '../types.js';
 
 type WebhookRequest = FastifyRequest<{ Params: { id: string } }>;
@@ -103,6 +104,7 @@ async function insertAndTrim(
        UPDATE endpoints SET dropped_count = dropped_count + (SELECT count(*) FROM deleted) WHERE id = $1`,
       [values[0], MAX_REQUESTS_PER_ENDPOINT],
     );
+    await recordRequestCaptured(client);
     await client.query('COMMIT');
     return rows[0];
   } catch (err) {

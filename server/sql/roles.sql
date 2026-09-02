@@ -37,6 +37,13 @@ GRANT UPDATE (response_status, response_body, response_content_type) ON endpoint
 -- (routes/endpoints.js) updates exactly that column.
 GRANT UPDATE (slug) ON endpoints TO webhook_inspector_app;
 
+-- daily_stats (stats.ts) is upserted, not just inserted: the app increments
+-- today's row on every endpoint creation and every capture. INSERT is
+-- needed for the first event of a new day; UPDATE stays column-level, same
+-- as every other exception above.
+GRANT SELECT, INSERT ON daily_stats TO webhook_inspector_app;
+GRANT UPDATE (endpoints_created, requests_captured) ON daily_stats TO webhook_inspector_app;
+
 -- No sequence grants needed: endpoints.id is an application-generated text
 -- id and requests.id defaults to gen_random_uuid(), so nothing here reads
 -- from a sequence.

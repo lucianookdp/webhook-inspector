@@ -74,6 +74,11 @@ if (databaseInsecureTls) {
 // process; see index.js for why a bare hop count isn't accepted here.
 export const trustProxy = (process.env.TRUST_PROXY ?? '127.0.0.1,::1').split(',').map((entry) => entry.trim());
 
+// Gates the /api/admin/stats route (routes/admin.js). Left unset, that
+// route 404s unconditionally — an admin surface with no way to reach it
+// rather than one guarding a default/empty credential.
+export const adminToken = process.env.ADMIN_TOKEN;
+
 export const maxLiveEndpoints = int('MAX_LIVE_ENDPOINTS', 5000);
 export const maxTotalStoredBytes = int('MAX_TOTAL_STORED_BYTES', 2 * 1024 * 1024 * 1024);
 export const databasePoolMax = int('DATABASE_POOL_MAX', 10);
