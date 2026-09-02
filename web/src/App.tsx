@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ApiError, createEndpoint, endpointUrl, fetchRequests, streamUrl } from './api';
 import { computeBackoffDelay } from './backoff';
 import { EmptyState } from './EmptyState';
@@ -53,7 +53,16 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
+  const [announcement, setAnnouncement] = useState('');
   const [copied, copy] = useCopy();
+
+  // The SSE effect below only depends on [endpoint], so its closure would
+  // otherwise see a stale `requests` from whenever it last ran; reconnect()
+  // needs the current list to compute what a refetch actually missed.
+  const requestsRef = useRef<RequestRow[]>(requests);
+  useEffect(() => {
+    requestsRef.current = requests;
+  }, [requests]);
 
   async function createNewEndpoint() {
     setCreating(true);
@@ -114,6 +123,7 @@ export default function App() {
         const row = JSON.parse(event.data) as RequestRow;
         setRequests((prev) => (prev.some((r) => r.id === row.id) ? prev : [row, ...prev]));
         setNewIds((prev) => new Set(prev).add(row.id));
+        setAnnouncement(`New ${row.method} request to ${row.path}`);
         setTimeout(() => {
           setNewIds((prev) => {
             const next = new Set(prev);
@@ -141,7 +151,12 @@ export default function App() {
       try {
         const page = await fetchRequests(endpoint.id);
         if (cancelled) return;
-        setRequests((prev) => mergeMissedRequests(prev, page.items));
+        const merged = mergeMissedRequests(requestsRef.current, page.items);
+        const missedCount = merged.length - requestsRef.current.length;
+        setRequests(merged);
+        if (missedCount > 0) {
+          setAnnouncement(`${missedCount} ${missedCount === 1 ? 'request' : 'requests'} received while reconnecting`);
+        }
         setDroppedCount(page.droppedCount);
         source = new EventSource(streamUrl(endpoint.id));
         attachHandlers(source);
@@ -244,6 +259,9 @@ export default function App() {
 
   return (
     <div className="app">
+      <div aria-live="polite" className="sr-only">
+        {announcement}
+      </div>
       <p className="app__pitch">
         Send any HTTP request to the URL below and watch it appear here right away — it stops working after 24 hours, so
         nothing lingers.
