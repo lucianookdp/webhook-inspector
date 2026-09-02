@@ -201,6 +201,99 @@ pre {
   font-size: 12px;
 }
 
+/* Response config */
+
+.response-config {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-dimmer);
+}
+
+.response-config--editing {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.response-config__row {
+  display: flex;
+  gap: 12px;
+}
+
+.response-config__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-dimmer);
+}
+
+.response-config__status-input {
+  width: 80px;
+}
+
+.response-config__content-type-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.response-config__status-input,
+.response-config__content-type-input,
+.response-config__body-input {
+  padding: 5px 8px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.response-config__body-input {
+  resize: vertical;
+}
+
+.response-config__status-input:focus-visible,
+.response-config__content-type-input:focus-visible,
+.response-config__body-input:focus-visible {
+  outline: 1px solid var(--text-dim);
+  outline-offset: 1px;
+}
+
+.response-config__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.response-config__link {
+  padding: 2px 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.response-config__link:hover {
+  color: var(--text);
+  border-color: transparent;
+}
+
+.response-config__error {
+  margin: 0;
+  color: var(--accent);
+  font-size: 12px;
+}
+
 .app__dropped-notice {
   color: var(--text-dimmer);
   font-size: 12px;

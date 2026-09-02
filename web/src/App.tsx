@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { ApiError, createEndpoint, endpointUrl, fetchRequests, streamUrl } from './api';
+import { ApiError, createEndpoint, endpointUrl, fetchRequests, type ResponseConfig, streamUrl } from './api';
 import { computeBackoffDelay } from './backoff';
 import { EmptyState } from './EmptyState';
 import { formatCountdown } from './format';
 import { mergeMissedRequests } from './mergeRequests';
 import { RequestList } from './RequestList';
+import { ResponseConfigControl } from './ResponseConfig';
 import { SigningSecret } from './SigningSecret';
 import type { EndpointInfo, RequestRow } from './types';
 import { useCopy } from './useCopy';
+
+const DEFAULT_RESPONSE_CONFIG: ResponseConfig = { status: null, body: null, contentType: null };
 
 const STORAGE_KEY = 'portaria:endpoint';
 
@@ -70,6 +73,7 @@ export default function App() {
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
   const [announcement, setAnnouncement] = useState('');
   const [signingSecretConfigured, setSigningSecretConfigured] = useState(false);
+  const [responseConfig, setResponseConfigState] = useState<ResponseConfig>(DEFAULT_RESPONSE_CONFIG);
   const [copied, copy] = useCopy();
 
   // The SSE effect below only depends on [endpoint], so its closure would
@@ -92,6 +96,7 @@ export default function App() {
       setDroppedCount(0);
       setSelectedId(null);
       setSigningSecretConfigured(false);
+      setResponseConfigState(DEFAULT_RESPONSE_CONFIG);
     } catch (err) {
       setError(creationErrorMessage(err));
     } finally {
@@ -176,6 +181,7 @@ export default function App() {
         }
         setDroppedCount(page.droppedCount);
         setSigningSecretConfigured(page.signingSecretConfigured);
+        setResponseConfigState(page.responseConfig);
         source = new EventSource(streamUrl(endpoint.id));
         attachHandlers(source);
       } catch (err) {
@@ -202,6 +208,7 @@ export default function App() {
         setNextCursor(page.nextCursor);
         setDroppedCount(page.droppedCount);
         setSigningSecretConfigured(page.signingSecretConfigured);
+        setResponseConfigState(page.responseConfig);
         source = new EventSource(streamUrl(endpoint.id));
         attachHandlers(source);
       })
@@ -329,6 +336,10 @@ export default function App() {
           configured={signingSecretConfigured}
           onChange={setSigningSecretConfigured}
         />
+      )}
+
+      {endpoint && (
+        <ResponseConfigControl endpointId={endpoint.id} config={responseConfig} onChange={setResponseConfigState} />
       )}
 
       {endpoint && (

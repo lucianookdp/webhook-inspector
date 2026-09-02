@@ -25,11 +25,18 @@ export async function createEndpoint(): Promise<EndpointInfo> {
   return res.json();
 }
 
+export interface ResponseConfig {
+  status: number | null;
+  body: string | null;
+  contentType: string | null;
+}
+
 export interface RequestsPage {
   items: RequestRow[];
   nextCursor: string | null;
   droppedCount: number;
   signingSecretConfigured: boolean;
+  responseConfig: ResponseConfig;
 }
 
 export async function fetchRequests(endpointId: string, cursor?: string): Promise<RequestsPage> {
@@ -52,6 +59,15 @@ export async function setSigningSecret(endpointId: string, secret: string | null
     body: JSON.stringify({ secret }),
   });
   if (!res.ok) throw new ApiError(res.status, `failed to update signing secret: ${res.status}`);
+}
+
+export async function setResponseConfig(endpointId: string, config: ResponseConfig): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/endpoints/${endpointId}/response-config`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  });
+  if (!res.ok) throw new ApiError(res.status, `failed to update response config: ${res.status}`);
 }
 
 export interface ForwardResult {
