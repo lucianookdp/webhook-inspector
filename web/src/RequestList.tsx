@@ -11,12 +11,14 @@ export function RequestList({
   onSelect,
   newIds,
   now,
+  endpointId,
 }: {
   requests: RequestRow[];
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   newIds: Set<string>;
   now: number;
+  endpointId: string;
 }) {
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -77,7 +79,7 @@ export function RequestList({
               <span className="request-row__time">{formatRelativeTime(row.received_at, now)}</span>
             </span>
           </button>
-          {selectedId === row.id && <RequestDetail row={row} />}
+          {selectedId === row.id && <RequestDetail row={row} endpointId={endpointId} />}
         </div>
       ))}
     </div>

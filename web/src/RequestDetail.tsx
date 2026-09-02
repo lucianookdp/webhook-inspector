@@ -1,17 +1,19 @@
-import { useState } from 'react';
+import { type FormEvent, useState } from 'react';
+import { ApiError, type ForwardResult, forwardRequest } from './api';
 import { type BodyKind, detectBodyKind, parseFormBody, prettyPrintXml, stringifyFieldValue } from './bodyKind';
 import { formatBytes } from './format';
 import { JsonView } from './JsonView';
 import type { RequestRow } from './types';
 import { useCopy } from './useCopy';
 
-type Tab = 'pretty' | 'raw' | 'headers' | 'query';
+type Tab = 'pretty' | 'raw' | 'headers' | 'query' | 'forward';
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'pretty', label: 'Pretty' },
   { id: 'raw', label: 'Raw' },
   { id: 'headers', label: 'Headers' },
   { id: 'query', label: 'Query' },
+  { id: 'forward', label: 'Forward' },
 ];
 
 function CopyButton({ text }: { text: string }) {
@@ -130,7 +132,85 @@ function RawBody({ row }: { row: RequestRow }) {
   return <pre className="json-view">{row.body}</pre>;
 }
 
-export function RequestDetail({ row }: { row: RequestRow }) {
+function statusClass(status: number): string {
+  if (status >= 200 && status < 300) return 'success';
+  if (status >= 300 && status < 400) return 'redirect';
+  if (status >= 400) return 'error';
+  return 'neutral';
+}
+
+function ForwardPanel({ endpointId, requestId }: { endpointId: string; requestId: string }) {
+  const [url, setUrl] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<ForwardResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    const target = url.trim();
+    if (!target || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    setResult(null);
+    try {
+      setResult(await forwardRequest(endpointId, requestId, target));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not forward the request. Check your connection.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="forward-panel">
+      <p className="forward-panel__intro">Re-send this request's method, headers, and body to another URL.</p>
+      <form className="forward-panel__form" onSubmit={handleSubmit}>
+        <input
+          type="url"
+          className="forward-panel__input"
+          placeholder="https://example.com/webhook"
+          value={url}
+          onChange={(event) => setUrl(event.target.value)}
+          required
+        />
+        <button type="submit" className="forward-panel__submit" disabled={submitting}>
+          {submitting ? 'Sending...' : 'Forward'}
+        </button>
+      </form>
+      {error && <p className="forward-panel__error">{error}</p>}
+      {result && (
+        <div className="forward-panel__result">
+          <div className="forward-panel__result-meta">
+            <span className={`forward-panel__status forward-panel__status--${statusClass(result.status)}`}>
+              {result.status}
+            </span>
+            <span>{result.durationMs}ms</span>
+            {result.bodyTruncated && <span>response truncated to 256 KB</span>}
+          </div>
+          {Object.keys(result.headers).length > 0 && (
+            <table className="kv-table">
+              <tbody>
+                {Object.entries(result.headers).map(([key, value]) => (
+                  <tr key={key}>
+                    <td className="kv-table__key">{key}</td>
+                    <td className="kv-table__value">{value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {result.body ? (
+            <pre className="json-view">{result.body}</pre>
+          ) : (
+            <p className="request-detail__empty-body">(empty response body)</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function RequestDetail({ row, endpointId }: { row: RequestRow; endpointId: string }) {
   const [tab, setTab] = useState<Tab>('pretty');
   const kind = detectBodyKind(row);
   const headerPairs = Object.entries(row.headers).map((entry): [string, string] => [
@@ -203,6 +283,7 @@ export function RequestDetail({ row }: { row: RequestRow }) {
             copyText={queryPairs.map(([key, value]) => `${key}=${value}`).join('\n')}
           />
         )}
+        {tab === 'forward' && <ForwardPanel endpointId={endpointId} requestId={row.id} />}
       </div>
     </div>
   );

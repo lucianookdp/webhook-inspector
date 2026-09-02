@@ -1,6 +1,10 @@
 import type { EndpointInfo, RequestRow } from './types';
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3001';
+// import.meta.env only exists under Vite; the node:test runner (tsx --test)
+// loads this file directly outside that environment now that RequestDetail
+// pulls it in, so env itself — not just the property on it — can be
+// undefined here.
+const API_BASE = import.meta.env?.VITE_API_BASE ?? 'http://localhost:3001';
 
 export class ApiError extends Error {
   status: number;
@@ -38,4 +42,26 @@ export async function fetchRequests(endpointId: string, cursor?: string): Promis
 
 export function streamUrl(endpointId: string): string {
   return `${API_BASE}/api/endpoints/${endpointId}/stream`;
+}
+
+export interface ForwardResult {
+  status: number;
+  headers: Record<string, string>;
+  body: string;
+  bodyTruncated: boolean;
+  durationMs: number;
+}
+
+export async function forwardRequest(endpointId: string, requestId: string, url: string): Promise<ForwardResult> {
+  const res = await fetch(`${API_BASE}/api/endpoints/${endpointId}/requests/${requestId}/forward`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  });
+  const data = await res.json().catch(() => undefined);
+  if (!res.ok) {
+    const message = data && typeof data.error === 'string' ? data.error : `failed to forward: ${res.status}`;
+    throw new ApiError(res.status, message);
+  }
+  return data as ForwardResult;
 }
