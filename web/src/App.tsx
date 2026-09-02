@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
 import { ApiError, createEndpoint, endpointUrl, fetchRequests, streamUrl } from './api';
+import { computeBackoffDelay } from './backoff';
 import { EmptyState } from './EmptyState';
 import { formatCountdown } from './format';
+import { mergeMissedRequests } from './mergeRequests';
 import { RequestList } from './RequestList';
 import type { EndpointInfo, RequestRow } from './types';
 import { useCopy } from './useCopy';
 
 const STORAGE_KEY = 'portaria:endpoint';
+
+type ConnectionState = 'connecting' | 'live' | 'reconnecting' | 'expired';
 
 function loadStoredEndpoint(): EndpointInfo | null {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -48,6 +52,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
+  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
   const [copied, copy] = useCopy();
 
   async function createNewEndpoint() {
@@ -89,14 +94,77 @@ export default function App() {
 
   // History loads from the database first; only once it has resolved does the
   // SSE stream open, so a request that arrived while nobody was watching is
-  // never missed and never shown twice.
+  // never missed and never shown twice. A dropped connection reconnects on
+  // its own with backoff instead of giving up, refetching the latest page
+  // first each time to catch up on anything that arrived while offline —
+  // only a 410 (the endpoint itself expired) stops the retries for good.
   useEffect(() => {
     if (!endpoint) return;
     let cancelled = false;
     let source: EventSource | undefined;
+    let retryTimeout: ReturnType<typeof setTimeout> | undefined;
+    let retryCount = 0;
+
+    function attachHandlers(es: EventSource) {
+      es.onopen = () => {
+        retryCount = 0;
+        setConnectionState('live');
+      };
+      es.onmessage = (event) => {
+        const row = JSON.parse(event.data) as RequestRow;
+        setRequests((prev) => (prev.some((r) => r.id === row.id) ? prev : [row, ...prev]));
+        setNewIds((prev) => new Set(prev).add(row.id));
+        setTimeout(() => {
+          setNewIds((prev) => {
+            const next = new Set(prev);
+            next.delete(row.id);
+            return next;
+          });
+        }, 300);
+      };
+      es.onerror = () => {
+        es.close();
+        if (cancelled) return;
+        scheduleReconnect();
+      };
+    }
+
+    function scheduleReconnect() {
+      setConnectionState('reconnecting');
+      const delay = computeBackoffDelay(retryCount);
+      retryCount += 1;
+      retryTimeout = setTimeout(() => void reconnect(), delay);
+    }
+
+    async function reconnect() {
+      if (cancelled || !endpoint) return;
+      try {
+        const page = await fetchRequests(endpoint.id);
+        if (cancelled) return;
+        setRequests((prev) => mergeMissedRequests(prev, page.items));
+        setDroppedCount(page.droppedCount);
+        source = new EventSource(streamUrl(endpoint.id));
+        attachHandlers(source);
+      } catch (err) {
+        if (cancelled) return;
+        if (err instanceof ApiError && (err.status === 410 || err.status === 404)) {
+          clearStoredEndpoint();
+          setEndpoint(null);
+          setConnectionState('expired');
+          setError(
+            err.status === 410
+              ? 'This URL expired. Generate a new one.'
+              : 'This URL was not found. Generate a new one.',
+          );
+          return;
+        }
+        scheduleReconnect();
+      }
+    }
 
     setLoading(true);
     setError(null);
+    setConnectionState('connecting');
 
     fetchRequests(endpoint.id)
       .then((page) => {
@@ -105,25 +173,7 @@ export default function App() {
         setNextCursor(page.nextCursor);
         setDroppedCount(page.droppedCount);
         source = new EventSource(streamUrl(endpoint.id));
-        source.onmessage = (event) => {
-          const row = JSON.parse(event.data) as RequestRow;
-          setRequests((prev) => (prev.some((r) => r.id === row.id) ? prev : [row, ...prev]));
-          setNewIds((prev) => new Set(prev).add(row.id));
-          setTimeout(() => {
-            setNewIds((prev) => {
-              const next = new Set(prev);
-              next.delete(row.id);
-              return next;
-            });
-          }, 300);
-        };
-        // Browsers retry a dropped EventSource forever by default; that's
-        // wasted effort against an endpoint that just expired, so stop it
-        // and surface the state instead of retrying silently.
-        source.onerror = () => {
-          source?.close();
-          setError('Live connection lost. Reload the page to reconnect.');
-        };
+        attachHandlers(source);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -145,6 +195,7 @@ export default function App() {
 
     return () => {
       cancelled = true;
+      if (retryTimeout) clearTimeout(retryTimeout);
       source?.close();
     };
   }, [endpoint]);
@@ -232,6 +283,15 @@ export default function App() {
         <button type="button" className="app__test-request" onClick={handleSendTestRequest} disabled={sendingTest}>
           {sendingTest ? 'Sending...' : 'Send a test request'}
         </button>
+      )}
+
+      {endpoint && connectionState !== 'expired' && (
+        <div className={`connection-indicator connection-indicator--${connectionState}`}>
+          <span className="connection-indicator__dot" />
+          {connectionState === 'live' && 'Live'}
+          {connectionState === 'connecting' && 'Connecting...'}
+          {connectionState === 'reconnecting' && 'Reconnecting...'}
+        </div>
       )}
 
       {endpoint && (
