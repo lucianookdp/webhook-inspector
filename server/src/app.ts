@@ -9,6 +9,7 @@ import { registerErrorHandlers } from './errorHandlers.js';
 import { loggerOptions } from './logging.js';
 import { endpointRoutes } from './routes/endpoints.js';
 import { forwardRoutes } from './routes/forward.js';
+import { healthRoutes } from './routes/health.js';
 import { streamRoutes } from './routes/stream.js';
 import { webhookRoutes } from './routes/webhook.js';
 
@@ -105,6 +106,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   app.register(endpointRoutes);
   app.register(forwardRoutes);
+  app.register(healthRoutes);
   app.register(streamRoutes);
   app.register(webhookRoutes);
 
