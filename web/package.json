@@ -7,7 +7,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test test/**/*.test.tsx",
+    "test": "tsx --test 'test/**/*.test.{ts,tsx}'",
     "lint": "biome check .",
     "format": "biome format --write .",
     "format:check": "biome format ."
