@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, createEndpoint, endpointUrl, fetchRequests, type ResponseConfig, streamUrl } from './api';
 import { computeBackoffDelay } from './backoff';
 import { EmptyState } from './EmptyState';
+import { FilterBar } from './FilterBar';
+import { matchesFilter } from './filterRequests';
 import { formatCountdown } from './format';
 import { mergeMissedRequests } from './mergeRequests';
 import { RequestList } from './RequestList';
@@ -74,7 +76,17 @@ export default function App() {
   const [announcement, setAnnouncement] = useState('');
   const [signingSecretConfigured, setSigningSecretConfigured] = useState(false);
   const [responseConfig, setResponseConfigState] = useState<ResponseConfig>(DEFAULT_RESPONSE_CONFIG);
+  const [filterMethod, setFilterMethod] = useState('');
+  const [filterQuery, setFilterQuery] = useState('');
   const [copied, copy] = useCopy();
+
+  // Filters over whatever's already loaded (see filterRequests.ts for why
+  // this is client-side rather than a server round trip) — recomputed only
+  // when the list or the filter actually changes, not on every render.
+  const filteredRequests = useMemo(
+    () => requests.filter((row) => matchesFilter(row, filterMethod, filterQuery)),
+    [requests, filterMethod, filterQuery],
+  );
 
   // The SSE effect below only depends on [endpoint], so its closure would
   // otherwise see a stale `requests` from whenever it last ran; reconnect()
@@ -97,6 +109,8 @@ export default function App() {
       setSelectedId(null);
       setSigningSecretConfigured(false);
       setResponseConfigState(DEFAULT_RESPONSE_CONFIG);
+      setFilterMethod('');
+      setFilterQuery('');
     } catch (err) {
       setError(creationErrorMessage(err));
     } finally {
@@ -350,20 +364,30 @@ export default function App() {
             <EmptyState url={endpointUrl(endpoint.id)} />
           ) : (
             <>
+              <FilterBar
+                method={filterMethod}
+                query={filterQuery}
+                onMethodChange={setFilterMethod}
+                onQueryChange={setFilterQuery}
+              />
               {droppedCount > 0 && (
                 <p className="app__dropped-notice">
                   {droppedCount} older {droppedCount === 1 ? 'request was' : 'requests were'} discarded to stay under
                   the per-endpoint storage limit.
                 </p>
               )}
-              <RequestList
-                requests={requests}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-                newIds={newIds}
-                now={now}
-                endpointId={endpoint.id}
-              />
+              {filteredRequests.length === 0 ? (
+                <p className="app__status">No requests match this filter.</p>
+              ) : (
+                <RequestList
+                  requests={filteredRequests}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                  newIds={newIds}
+                  now={now}
+                  endpointId={endpoint.id}
+                />
+              )}
               {nextCursor && (
                 <button type="button" className="app__load-more" onClick={handleLoadMore} disabled={loadingMore}>
                   {loadingMore ? 'Loading...' : 'Load more'}
