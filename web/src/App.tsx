@@ -39,6 +39,20 @@ function creationErrorMessage(err: unknown): string {
   return 'Could not create a URL. Check your connection and try again.';
 }
 
+// A stored endpoint reference can be unusable for reasons beyond just having
+// expired (410) or been deleted (404) — a malformed id left over from a
+// stale build or manual localStorage edit fails schema validation (400).
+// All three mean the same thing to the user: this URL doesn't work anymore,
+// so generate a new one instead of getting stuck showing a dead link.
+function isUnusableEndpointError(err: unknown): err is ApiError {
+  return err instanceof ApiError && (err.status === 400 || err.status === 404 || err.status === 410);
+}
+
+function unusableEndpointMessage(status: number): string {
+  if (status === 410) return 'This URL expired. Generate a new one.';
+  return 'This URL was not found. Generate a new one.';
+}
+
 export default function App() {
   const [endpoint, setEndpoint] = useState<EndpointInfo | null>(() => loadStoredEndpoint());
   const [creating, setCreating] = useState(false);
@@ -162,15 +176,11 @@ export default function App() {
         attachHandlers(source);
       } catch (err) {
         if (cancelled) return;
-        if (err instanceof ApiError && (err.status === 410 || err.status === 404)) {
+        if (isUnusableEndpointError(err)) {
           clearStoredEndpoint();
           setEndpoint(null);
           setConnectionState('expired');
-          setError(
-            err.status === 410
-              ? 'This URL expired. Generate a new one.'
-              : 'This URL was not found. Generate a new one.',
-          );
+          setError(unusableEndpointMessage(err.status));
           return;
         }
         scheduleReconnect();
@@ -192,14 +202,10 @@ export default function App() {
       })
       .catch((err) => {
         if (cancelled) return;
-        if (err instanceof ApiError && err.status === 410) {
+        if (isUnusableEndpointError(err)) {
           clearStoredEndpoint();
           setEndpoint(null);
-          setError('This URL expired. Generate a new one.');
-        } else if (err instanceof ApiError && err.status === 404) {
-          clearStoredEndpoint();
-          setEndpoint(null);
-          setError('This URL was not found. Generate a new one.');
+          setError(unusableEndpointMessage(err.status));
         } else {
           setError('Could not load request history.');
         }
