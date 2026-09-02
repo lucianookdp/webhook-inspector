@@ -20,8 +20,8 @@ export function RequestList({
       <div className="request-list__header">
         <span>Method</span>
         <span>Path</span>
-        <span>Size</span>
-        <span>Received</span>
+        <span className="request-list__header-size">Size</span>
+        <span className="request-list__header-received">Received</span>
       </div>
       {requests.map((row) => (
         <div
@@ -48,8 +48,10 @@ export function RequestList({
                 </span>
               )}
             </span>
-            <span className="request-row__size">{formatBytes(row.size_bytes)}</span>
-            <span className="request-row__time">{formatRelativeTime(row.received_at, now)}</span>
+            <span className="request-row__meta">
+              <span className="request-row__size">{formatBytes(row.size_bytes)}</span>
+              <span className="request-row__time">{formatRelativeTime(row.received_at, now)}</span>
+            </span>
           </button>
           {selectedId === row.id && <RequestDetail row={row} />}
         </div>

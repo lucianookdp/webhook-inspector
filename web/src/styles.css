@@ -403,6 +403,13 @@ pre {
   border-radius: 3px;
 }
 
+.request-row__meta {
+  /* On wide layouts this wrapper stays invisible to the grid so size/time
+     keep lining up with their header columns; the narrow-screen media query
+     below turns it into a real flex row spanning both columns instead. */
+  display: contents;
+}
+
 .request-row__size,
 .request-row__time {
   color: var(--text-dim);
@@ -606,4 +613,44 @@ pre {
 .json-null {
   color: var(--text-dimmer);
   font-style: italic;
+}
+
+/* Narrow screens */
+
+@media (max-width: 480px) {
+  .url-panel__row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .url-panel__copy {
+    width: 100%;
+  }
+
+  .snippets__panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .snippets__copy {
+    align-self: flex-end;
+  }
+
+  .request-list__header,
+  .request-row {
+    grid-template-columns: auto 1fr;
+  }
+
+  .request-list__header-size,
+  .request-list__header-received {
+    display: none;
+  }
+
+  .request-row__meta {
+    display: flex;
+    grid-column: 1 / -1;
+    gap: 12px;
+    margin-top: 4px;
+  }
 }
