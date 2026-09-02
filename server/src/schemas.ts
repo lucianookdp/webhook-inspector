@@ -10,6 +10,20 @@ export const endpointIdParamsSchema = {
   },
 } as const;
 
+// The capture route (routes/webhook.js) is the one place a caller can use
+// either the random id or a user-chosen slug (id.js's SLUG_PATTERN) — it's
+// the URL people actually paste into a webhook provider, so it accepts
+// whichever form was configured. Every other route keeps the strict
+// id-only schema above, since the frontend always addresses them with the
+// canonical id it already has.
+export const captureIdentifierParamsSchema = {
+  type: 'object',
+  required: ['id'],
+  properties: {
+    id: { type: 'string', pattern: '^([A-Za-z0-9]{12}|[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])?)$' },
+  },
+} as const;
+
 // limit/cursor are re-parsed and semantically validated in the handler
 // (routes/endpoints.js) — decodeCursor rejects anything that doesn't decode
 // to the expected shape, and an out-of-range limit falls back to the
@@ -68,5 +82,16 @@ export const responseConfigBodySchema = {
     status: { type: ['integer', 'null'], minimum: 200, maximum: 599 },
     body: { type: ['string', 'null'], maxLength: 65536 },
     contentType: { type: ['string', 'null'], maxLength: 255 },
+  },
+} as const;
+
+// Just a first-line-of-defense length check — routes/endpoints.js does the
+// semantic validation (id.js's isValidSlug, after trimming/lowercasing)
+// that produces a clearer 400 than a schema pattern mismatch would.
+export const slugBodySchema = {
+  type: 'object',
+  required: ['slug'],
+  properties: {
+    slug: { type: ['string', 'null'], maxLength: 32 },
   },
 } as const;

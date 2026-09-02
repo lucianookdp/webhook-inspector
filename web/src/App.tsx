@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, createEndpoint, endpointUrl, fetchRequests, type ResponseConfig, streamUrl } from './api';
 import { computeBackoffDelay } from './backoff';
 import { EmptyState } from './EmptyState';
+import { EndpointSlug } from './EndpointSlug';
 import { buildExportFilename, downloadJson, serializeRequests } from './exportRequests';
 import { FilterBar } from './FilterBar';
 import { matchesFilter } from './filterRequests';
@@ -96,6 +97,22 @@ export default function App() {
   useEffect(() => {
     requestsRef.current = requests;
   }, [requests]);
+
+  // Keeps the stored endpoint reference (and the URL derived from it) in
+  // sync with the server's current slug — set from the EndpointSlug control
+  // directly, and re-applied on every history load/reconnect so a name
+  // change made from another tab or device shows up here too. Wrapped in
+  // useCallback so its identity stays stable across renders — it's a
+  // dependency of the history-load/SSE effect below, which must not re-run
+  // just because App re-rendered.
+  const applyEndpointSlug = useCallback((slug: string | null) => {
+    setEndpoint((prev) => {
+      if (!prev || prev.slug === slug) return prev;
+      const next = { ...prev, slug };
+      storeEndpoint(next);
+      return next;
+    });
+  }, []);
 
   async function createNewEndpoint() {
     setCreating(true);
@@ -197,6 +214,7 @@ export default function App() {
         setDroppedCount(page.droppedCount);
         setSigningSecretConfigured(page.signingSecretConfigured);
         setResponseConfigState(page.responseConfig);
+        applyEndpointSlug(page.slug);
         source = new EventSource(streamUrl(endpoint.id));
         attachHandlers(source);
       } catch (err) {
@@ -224,6 +242,7 @@ export default function App() {
         setDroppedCount(page.droppedCount);
         setSigningSecretConfigured(page.signingSecretConfigured);
         setResponseConfigState(page.responseConfig);
+        applyEndpointSlug(page.slug);
         source = new EventSource(streamUrl(endpoint.id));
         attachHandlers(source);
       })
@@ -246,7 +265,7 @@ export default function App() {
       if (retryTimeout) clearTimeout(retryTimeout);
       source?.close();
     };
-  }, [endpoint]);
+  }, [endpoint, applyEndpointSlug]);
 
   // Fires straight from the browser at the user's own endpoint — no server
   // involvement beyond capturing it like any other request — so the first
@@ -296,7 +315,7 @@ export default function App() {
     downloadJson(buildExportFilename(endpoint.id), serializeRequests(filteredRequests));
   }
 
-  const url = endpoint ? endpointUrl(endpoint.id) : null;
+  const url = endpoint ? endpointUrl(endpoint.slug ?? endpoint.id) : null;
   const remainingMs = endpoint ? new Date(endpoint.expiresAt).getTime() - now : 0;
 
   return (
@@ -354,6 +373,8 @@ export default function App() {
         </div>
       )}
 
+      {endpoint && <EndpointSlug endpointId={endpoint.id} slug={endpoint.slug} onChange={applyEndpointSlug} />}
+
       {endpoint && (
         <SigningSecret
           endpointId={endpoint.id}
@@ -371,7 +392,7 @@ export default function App() {
           {loading ? (
             <p className="app__status">Loading history...</p>
           ) : requests.length === 0 ? (
-            <EmptyState url={endpointUrl(endpoint.id)} />
+            <EmptyState url={endpointUrl(endpoint.slug ?? endpoint.id)} />
           ) : (
             <>
               <div className="list-toolbar">

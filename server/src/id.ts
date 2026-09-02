@@ -10,3 +10,12 @@ export function generateId(): string {
   }
   return id;
 }
+
+// Lowercase letters, digits and internal hyphens, 3-32 characters, never
+// starting or ending with a hyphen — restrictive enough to always be a safe
+// URL path segment without percent-encoding.
+export const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])?$/;
+
+export function isValidSlug(slug: string): boolean {
+  return SLUG_PATTERN.test(slug);
+}

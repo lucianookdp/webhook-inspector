@@ -2,13 +2,14 @@ import type { FastifyInstance } from 'fastify';
 import { decodeCursor, encodeCursor } from '../cursor.js';
 import { pool } from '../db.js';
 import { getEndpointStatus } from '../endpointStatus.js';
-import { generateId } from '../id.js';
+import { generateId, isValidSlug } from '../id.js';
 import { isLiveEndpointCeilingReached } from '../limits.js';
 import {
   endpointIdParamsSchema,
   requestsQuerystringSchema,
   responseConfigBodySchema,
   signingSecretBodySchema,
+  slugBodySchema,
 } from '../schemas.js';
 import { computeSignatureStatus } from '../signature.js';
 import type { RequestRow } from '../types.js';
@@ -44,7 +45,7 @@ export async function endpointRoutes(app: FastifyInstance) {
 
       await pool.query('INSERT INTO endpoints (id, expires_at) VALUES ($1, $2)', [id, expiresAt]);
 
-      reply.code(201).send({ id, expiresAt: expiresAt.toISOString() });
+      reply.code(201).send({ id, expiresAt: expiresAt.toISOString(), slug: null });
     },
   );
 
@@ -58,7 +59,7 @@ export async function endpointRoutes(app: FastifyInstance) {
       schema: { params: endpointIdParamsSchema, querystring: requestsQuerystringSchema },
     },
     async (req, reply) => {
-      const { status, droppedCount, signingSecret, responseConfig } = await getEndpointStatus(req.params.id);
+      const { status, slug, droppedCount, signingSecret, responseConfig } = await getEndpointStatus(req.params.id);
       if (status === 'missing') {
         reply.code(404).send({ error: 'endpoint not found' });
         return;
@@ -119,6 +120,7 @@ export async function endpointRoutes(app: FastifyInstance) {
         droppedCount,
         signingSecretConfigured: signingSecret !== null,
         responseConfig,
+        slug,
       });
     },
   );
@@ -171,6 +173,47 @@ export async function endpointRoutes(app: FastifyInstance) {
         [req.body.status ?? null, req.body.body ?? null, req.body.contentType?.trim() || null, req.params.id],
       );
       reply.code(204).send();
+    },
+  );
+
+  app.put<{ Params: { id: string }; Body: { slug: string | null } }>(
+    '/api/endpoints/:id/slug',
+    {
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+      schema: { params: endpointIdParamsSchema, body: slugBodySchema },
+    },
+    async (req, reply) => {
+      const { status } = await getEndpointStatus(req.params.id);
+      if (status === 'missing' || status === 'disabled') {
+        reply.code(404).send({ error: 'endpoint not found' });
+        return;
+      }
+      if (status === 'expired') {
+        reply.code(410).send({ error: 'endpoint expired' });
+        return;
+      }
+
+      // null (or an empty/whitespace-only string) clears a previously-set
+      // slug — the same forgiving "I deleted the input and hit save"
+      // behavior as the signing-secret route.
+      const raw = req.body.slug?.trim().toLowerCase() ?? null;
+      const slug = raw || null;
+      if (slug !== null && !isValidSlug(slug)) {
+        reply.code(400).send({ error: 'slug must be 3-32 lowercase letters, digits or hyphens' });
+        return;
+      }
+
+      try {
+        await pool.query('UPDATE endpoints SET slug = $1 WHERE id = $2', [slug, req.params.id]);
+      } catch (err) {
+        // 23505 = unique_violation: another endpoint already holds this slug.
+        if (err && typeof err === 'object' && 'code' in err && err.code === '23505') {
+          reply.code(409).send({ error: 'that name is already taken' });
+          return;
+        }
+        throw err;
+      }
+      reply.code(200).send({ slug });
     },
   );
 }

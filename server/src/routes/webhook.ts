@@ -4,7 +4,7 @@ import { getEndpointStatus } from '../endpointStatus.js';
 import { publishRequest } from '../events.js';
 import { maskIp } from '../ip.js';
 import { isStorageCeilingReached } from '../limits.js';
-import { endpointIdParamsSchema } from '../schemas.js';
+import { captureIdentifierParamsSchema } from '../schemas.js';
 import type { RequestRow } from '../types.js';
 
 type WebhookRequest = FastifyRequest<{ Params: { id: string } }>;
@@ -131,7 +131,7 @@ export async function webhookRoutes(app: FastifyInstance) {
     {
       bodyLimit: ROUTE_BODY_LIMIT,
       config: { rateLimit: CAPTURE_RATE_LIMIT },
-      schema: { params: endpointIdParamsSchema },
+      schema: { params: captureIdentifierParamsSchema },
     },
     handleWebhook,
   );
@@ -140,16 +140,18 @@ export async function webhookRoutes(app: FastifyInstance) {
     {
       bodyLimit: ROUTE_BODY_LIMIT,
       config: { rateLimit: CAPTURE_RATE_LIMIT },
-      schema: { params: endpointIdParamsSchema },
+      schema: { params: captureIdentifierParamsSchema },
     },
     handleWebhook,
   );
 }
 
 async function handleWebhook(req: WebhookRequest, reply: FastifyReply) {
-  const { id } = req.params;
-
-  const { status, responseConfig } = await getEndpointStatus(id);
+  // req.params.id may be the canonical id or a configured slug; `id` below
+  // is always the resolved canonical one, which insertAndTrim/publishRequest
+  // need — the requests table and the NOTIFY channel are keyed on it, not
+  // on whatever the caller typed in the URL.
+  const { id, status, responseConfig } = await getEndpointStatus(req.params.id);
   if (status === 'missing') {
     reply.code(404).send({ error: 'endpoint not found' });
     return;
