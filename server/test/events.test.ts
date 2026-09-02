@@ -72,9 +72,14 @@ test('a NOTIFY from another instance delivers the row to local subscribers', asy
   // RequestRow types received_at as a string because that's its shape once
   // serialized over HTTP — pg's driver actually hands back a real Date for
   // a timestamptz column, which is what the listener's row still is here.
+  // `signature` is likewise only attached at the HTTP/SSE serialization
+  // layer (routes/endpoints.js, routes/stream.js) — the raw row this test's
+  // notification handler looks up doesn't carry it, by design (see
+  // events.js: it re-emits the same row shape the DB stores).
   const notified = await received;
   const receivedAt = notified.received_at as unknown as Date;
-  assert.deepEqual({ ...notified, received_at: receivedAt.toISOString() }, row);
+  const { signature: _signature, ...rowWithoutSignature } = row;
+  assert.deepEqual({ ...notified, received_at: receivedAt.toISOString() }, rowWithoutSignature);
 });
 
 test('a malformed payload on the shared channel is ignored, not fatal', async () => {

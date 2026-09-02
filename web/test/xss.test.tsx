@@ -23,6 +23,7 @@ function baseRow(overrides: Partial<RequestRow>): RequestRow {
     ip: '127.0.0.0',
     size_bytes: 0,
     received_at: new Date().toISOString(),
+    signature: 'unconfigured',
     ...overrides,
   };
 }

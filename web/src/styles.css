@@ -152,6 +152,55 @@ pre {
   }
 }
 
+/* Signing secret */
+
+.signing-secret {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-dimmer);
+}
+
+.signing-secret__link {
+  padding: 2px 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.signing-secret__link:hover {
+  color: var(--text);
+  border-color: transparent;
+}
+
+.signing-secret__input {
+  padding: 5px 8px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  min-width: 200px;
+}
+
+.signing-secret__input:focus-visible {
+  outline: 1px solid var(--text-dim);
+  outline-offset: 1px;
+}
+
+.signing-secret__error {
+  margin: 0;
+  color: var(--accent);
+  font-size: 12px;
+}
+
 .app__dropped-notice {
   color: var(--text-dimmer);
   font-size: 12px;
@@ -415,6 +464,12 @@ pre {
   border-radius: 3px;
 }
 
+.request-row__flag--invalid {
+  color: #d97f7f;
+  background: rgba(217, 127, 127, 0.12);
+  border-color: rgba(217, 127, 127, 0.3);
+}
+
 .request-row__meta {
   /* On wide layouts this wrapper stays invisible to the grid so size/time
      keep lining up with their header columns; the narrow-screen media query
@@ -477,6 +532,32 @@ pre {
   font-size: 12px;
   color: var(--text-dim);
   margin-bottom: 16px;
+}
+
+.request-detail__signature {
+  padding: 2px 8px;
+  font-weight: 600;
+  border-radius: 3px;
+  border: 1px solid transparent;
+}
+
+.request-detail__signature--valid {
+  color: #7fb8c4;
+  background: rgba(127, 184, 196, 0.12);
+  border-color: rgba(127, 184, 196, 0.3);
+}
+
+.request-detail__signature--invalid {
+  color: #d97f7f;
+  background: rgba(217, 127, 127, 0.12);
+  border-color: rgba(217, 127, 127, 0.3);
+}
+
+.request-detail__signature--no-header,
+.request-detail__signature--unknown {
+  color: var(--text-dimmer);
+  background: var(--bg-elevated);
+  border-color: var(--border);
 }
 
 .request-detail__tabs {

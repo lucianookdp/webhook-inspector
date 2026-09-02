@@ -1,8 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import * as config from '../config.js';
-import { getEndpointStatus } from '../endpointStatus.js';
+import { getEndpointStatus, getSigningSecret } from '../endpointStatus.js';
 import { subscribeToRequests } from '../events.js';
 import { endpointIdParamsSchema } from '../schemas.js';
+import { computeSignatureStatus } from '../signature.js';
 import { releaseSseSlot, tryAcquireSseSlot } from '../sseLimiter.js';
 import { registerSseConnection, unregisterSseConnection } from '../sseRegistry.js';
 
@@ -58,8 +59,22 @@ export async function streamRoutes(app: FastifyInstance) {
 
       registerSseConnection(reply.raw);
 
+      let closed = false;
+
+      // Fetched fresh per message rather than once at connection open: a
+      // secret set or changed while this connection is open should apply to
+      // the very next captured request, not just ones after a reconnect.
+      // The lookup makes this write async, so the client can disconnect
+      // (setting `closed`) before it resolves — checked below rather than
+      // writing to an already-destroyed socket.
       const unsubscribe = subscribeToRequests(id, (row) => {
-        reply.raw.write(`data: ${JSON.stringify(row)}\n\n`);
+        getSigningSecret(id)
+          .then((secret) => {
+            if (closed) return;
+            const signature = computeSignatureStatus(row.body, row.body_is_binary, row.truncated, row.headers, secret);
+            reply.raw.write(`data: ${JSON.stringify({ ...row, signature })}\n\n`);
+          })
+          .catch((err) => req.log.error({ err }, 'failed to compute signature status for a live request'));
       });
 
       const heartbeat = setInterval(() => {
@@ -67,6 +82,7 @@ export async function streamRoutes(app: FastifyInstance) {
       }, HEARTBEAT_MS);
 
       req.raw.on('close', () => {
+        closed = true;
         clearInterval(heartbeat);
         unsubscribe();
         releaseSseSlot(id, req.ip);

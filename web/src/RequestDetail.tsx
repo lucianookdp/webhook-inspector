@@ -3,7 +3,7 @@ import { ApiError, type ForwardResult, forwardRequest } from './api';
 import { type BodyKind, detectBodyKind, parseFormBody, prettyPrintXml, stringifyFieldValue } from './bodyKind';
 import { formatBytes } from './format';
 import { JsonView } from './JsonView';
-import type { RequestRow } from './types';
+import type { RequestRow, SignatureStatus } from './types';
 import { useCopy } from './useCopy';
 
 type Tab = 'pretty' | 'raw' | 'headers' | 'query' | 'forward';
@@ -132,6 +132,14 @@ function RawBody({ row }: { row: RequestRow }) {
   return <pre className="json-view">{row.body}</pre>;
 }
 
+const SIGNATURE_LABELS: Record<SignatureStatus, string> = {
+  unconfigured: '',
+  unknown: 'signature: unknown (body not verifiable)',
+  'no-header': 'signature: no header found',
+  valid: 'signature: valid',
+  invalid: 'signature: invalid',
+};
+
 function statusClass(status: number): string {
   if (status >= 200 && status < 300) return 'success';
   if (status >= 300 && status < 400) return 'redirect';
@@ -229,6 +237,11 @@ export function RequestDetail({ row, endpointId }: { row: RequestRow; endpointId
         <span title="Truncated to its /24 (IPv4) or /48 (IPv6) network — see the README">{row.ip ?? 'unknown ip'}</span>
         <span>{row.content_type ?? 'no content-type'}</span>
         <span>{formatBytes(row.size_bytes)}</span>
+        {row.signature !== 'unconfigured' && (
+          <span className={`request-detail__signature request-detail__signature--${row.signature}`}>
+            {SIGNATURE_LABELS[row.signature]}
+          </span>
+        )}
       </div>
 
       {row.truncated && (

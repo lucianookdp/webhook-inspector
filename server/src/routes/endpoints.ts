@@ -4,7 +4,8 @@ import { pool } from '../db.js';
 import { getEndpointStatus } from '../endpointStatus.js';
 import { generateId } from '../id.js';
 import { isLiveEndpointCeilingReached } from '../limits.js';
-import { endpointIdParamsSchema, requestsQuerystringSchema } from '../schemas.js';
+import { endpointIdParamsSchema, requestsQuerystringSchema, signingSecretBodySchema } from '../schemas.js';
+import { computeSignatureStatus } from '../signature.js';
 import type { RequestRow } from '../types.js';
 
 const ENDPOINT_TTL_MS = 24 * 60 * 60 * 1000;
@@ -52,7 +53,7 @@ export async function endpointRoutes(app: FastifyInstance) {
       schema: { params: endpointIdParamsSchema, querystring: requestsQuerystringSchema },
     },
     async (req, reply) => {
-      const { status, droppedCount } = await getEndpointStatus(req.params.id);
+      const { status, droppedCount, signingSecret } = await getEndpointStatus(req.params.id);
       if (status === 'missing') {
         reply.code(404).send({ error: 'endpoint not found' });
         return;
@@ -98,7 +99,44 @@ export async function endpointRoutes(app: FastifyInstance) {
       const items = hasMore ? rows.slice(0, limit) : rows;
       const nextCursor = hasMore ? encodeCursor(items[items.length - 1]) : null;
 
-      reply.send({ items, nextCursor, droppedCount });
+      // Computed fresh against the endpoint's current secret rather than
+      // stored at capture time: if the secret changes, older rows are
+      // re-evaluated against it too, which is what "does my current secret
+      // match this captured request" actually means while debugging.
+      const withSignatures = items.map((item) => ({
+        ...item,
+        signature: computeSignatureStatus(item.body, item.body_is_binary, item.truncated, item.headers, signingSecret),
+      }));
+
+      reply.send({
+        items: withSignatures,
+        nextCursor,
+        droppedCount,
+        signingSecretConfigured: signingSecret !== null,
+      });
+    },
+  );
+
+  app.put<{ Params: { id: string }; Body: { secret: string | null } }>(
+    '/api/endpoints/:id/signing-secret',
+    {
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+      schema: { params: endpointIdParamsSchema, body: signingSecretBodySchema },
+    },
+    async (req, reply) => {
+      const { status } = await getEndpointStatus(req.params.id);
+      if (status === 'missing' || status === 'disabled') {
+        reply.code(404).send({ error: 'endpoint not found' });
+        return;
+      }
+      if (status === 'expired') {
+        reply.code(410).send({ error: 'endpoint expired' });
+        return;
+      }
+
+      const secret = req.body.secret?.trim() || null;
+      await pool.query('UPDATE endpoints SET signing_secret = $1 WHERE id = $2', [secret, req.params.id]);
+      reply.code(204).send();
     },
   );
 }

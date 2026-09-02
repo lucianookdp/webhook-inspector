@@ -29,6 +29,7 @@ export interface RequestsPage {
   items: RequestRow[];
   nextCursor: string | null;
   droppedCount: number;
+  signingSecretConfigured: boolean;
 }
 
 export async function fetchRequests(endpointId: string, cursor?: string): Promise<RequestsPage> {
@@ -42,6 +43,15 @@ export async function fetchRequests(endpointId: string, cursor?: string): Promis
 
 export function streamUrl(endpointId: string): string {
   return `${API_BASE}/api/endpoints/${endpointId}/stream`;
+}
+
+export async function setSigningSecret(endpointId: string, secret: string | null): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/endpoints/${endpointId}/signing-secret`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ secret }),
+  });
+  if (!res.ok) throw new ApiError(res.status, `failed to update signing secret: ${res.status}`);
 }
 
 export interface ForwardResult {
