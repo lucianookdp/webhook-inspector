@@ -1,19 +1,14 @@
-import { useCopy } from './useCopy';
+import { Snippets } from './Snippets';
 
 export function EmptyState({ url }: { url: string }) {
-  const command = `curl -X POST ${url} -H "Content-Type: application/json" -d '{"hello":"world"}'`;
-  const [copied, copy] = useCopy();
-
   return (
     <div className="empty-state">
-      <p>No requests yet. Send one from your terminal:</p>
-      <div className="empty-state__command">
-        <pre>{command}</pre>
-        <button type="button" onClick={() => copy(command)}>
-          {copied ? 'Copied' : 'Copy'}
-        </button>
-      </div>
-      <p className="empty-state__hint">Or register the URL above with any service that fires webhooks.</p>
+      <ol className="empty-state__steps">
+        <li>Copy the URL above, or use the button above to send one yourself.</li>
+        <li>Send it any HTTP request — from your terminal, your code, or a service that fires webhooks.</li>
+        <li>Watch it show up here, in real time.</li>
+      </ol>
+      <Snippets url={url} />
     </div>
   );
 }

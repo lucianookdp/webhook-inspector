@@ -1,7 +1,10 @@
 export interface EndpointInfo {
   id: string;
   expiresAt: string;
+  slug: string | null;
 }
+
+export type SignatureStatus = 'unconfigured' | 'unknown' | 'no-header' | 'valid' | 'invalid';
 
 export interface RequestRow {
   id: string;
@@ -16,4 +19,5 @@ export interface RequestRow {
   ip: string | null;
   size_bytes: number;
   received_at: string;
+  signature: SignatureStatus;
 }

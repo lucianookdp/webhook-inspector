@@ -1,12 +1,18 @@
 import { Pool } from 'pg';
-
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  throw new Error('DATABASE_URL is not set');
-}
+import * as config from './config.js';
+import { buildDatabaseSsl } from './tls.js';
 
 export const pool = new Pool({
-  connectionString,
-  // Local Postgres usually has no SSL configured; hosted providers (Neon) require it.
-  ssl: connectionString.includes('localhost') ? false : { rejectUnauthorized: false },
+  connectionString: config.databaseUrl,
+  ssl: buildDatabaseSsl(config.databaseUrl, {
+    insecureTls: config.databaseInsecureTls,
+    caCert: config.databaseCaCert,
+  }),
+  // Bounds how many connections this process can hold open, so a burst of
+  // slow requests can't starve every other query of a connection.
+  max: config.databasePoolMax,
+  // A single stuck or pathological query would otherwise occupy a pool
+  // connection indefinitely; this is enforced server-side by Postgres itself
+  // on every statement this connection runs.
+  statement_timeout: config.databaseStatementTimeoutMs,
 });
