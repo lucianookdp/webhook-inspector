@@ -148,23 +148,43 @@ captured for.
 ## Deploying to production
 
 The server deploys as a Docker container (any host that runs one works;
-these steps use [Railway](https://railway.com)) and the frontend as a
-static build published to [GitHub Pages](https://pages.github.com/).
-Postgres is assumed to be [Neon](https://neon.tech) or similar; Redis is
-optional but strongly recommended once more than one server instance is
-running.
+these steps use [Railway](https://railway.com), including its own Postgres
+and Redis plugins) and the frontend as a static build published to
+[GitHub Pages](https://pages.github.com/). An external Postgres (e.g.
+[Neon](https://neon.tech)) works too — everything below still applies
+except the "self-signed certificate" note, which is specific to Railway's
+Postgres plugin.
 
 ### 1. Database
 
-1. Create a Postgres database (Neon's free tier is enough to try this).
+1. Add a Postgres plugin to the Railway project (or create an external
+   database — Neon's free tier is enough to try this).
 2. Connect as the database owner and run `server/sql/roles.sql` once,
    after replacing its placeholder password and database name — this
    creates the least-privilege `webhook_inspector_app` role the running
-   server connects as.
+   server connects as. On Railway, the easiest way to do this without ever
+   printing the owner connection string is the Postgres service's
+   **Console** tab in the dashboard, which opens a root shell in the
+   database container itself; run `psql -U "$POSTGRES_USER" -d
+   "$POSTGRES_DB" -f <file>` there.
 3. You won't run `npm run migrate` by hand for this deployment: the
    server's Docker image runs it automatically on every boot (see the
    Dockerfile) using `MIGRATION_DATABASE_URL`, so migrations stay in sync
    with whatever image is currently deployed without a separate step.
+
+**Self-signed certificate on Railway's Postgres plugin**: Railway's own
+Postgres template (`postgres-ssl`) generates a self-signed CA per deployment
+rather than using a publicly-trusted one. `tls.ts`'s default (`rejectUnauthorized:
+true`, no `ca`) correctly refuses that connection — `migrate.js` will fail
+repeatedly with `self-signed certificate in certificate chain` until you set
+`DATABASE_CA_CERT`. Don't work around this with `DATABASE_INSECURE_TLS=true`;
+fetch the actual CA instead: in the Postgres service's Console tab, run `cat
+/var/lib/postgresql/data/certs/root.crt` and copy everything from
+`-----BEGIN CERTIFICATE-----` to `-----END CERTIFICATE-----` (the file also
+contains a human-readable `openssl x509 -text`-style header above that block —
+leave that part out) into the server's `DATABASE_CA_CERT` variable. An
+external Postgres provider with a publicly-trusted certificate (Neon and
+most others) doesn't need this.
 
 ### 2. Server (Railway)
 
@@ -183,26 +203,37 @@ running.
    - `NODE_ENV=production`
    - `DATABASE_URL` / `MIGRATION_DATABASE_URL` — the app role and the
      owner role from step 1, respectively.
+   - `DATABASE_CA_CERT` — only needed for Railway's own Postgres plugin;
+     see the callout above.
    - `WEB_ORIGIN` — the frontend's production URL (step 3 below). Required
      in production; the process refuses to boot without it.
    - `ADMIN_TOKEN` — optional, see [Usage stats](#usage-stats) above.
    - `TRUST_PROXY` — see the callout below before setting this.
 4. Deploy. `GET /health` should return `200 ok` once the service is up.
+   The first deploy needs `DATABASE_URL` to point at a role that already
+   exists — if you haven't run `roles.sql` yet, temporarily set
+   `DATABASE_URL` to the same owner connection string as
+   `MIGRATION_DATABASE_URL` so migrations can create the tables `roles.sql`
+   grants against, then switch it to the least-privilege role and redeploy.
 
-**`TRUST_PROXY` on Railway**: Railway's edge proxy appends the real client
-IP to `X-Forwarded-For` but does not strip anything a client already put in
-that header — exactly the situation `TRUST_PROXY` (an address allowlist,
-not a bare hop count) exists to handle correctly, *given the right address*.
-Railway doesn't publish a single fixed proxy IP that's guaranteed stable
-across its infrastructure, so don't guess one. Instead: temporarily log
-`req.socket.remoteAddress` (or check what Railway's own docs/support say
-for your project at deploy time) to find the actual immediate peer address,
-set `TRUST_PROXY` to that, then do the verification the README already
-recommends above — send a request with a forged `X-Forwarded-For` header
-and confirm the `ip` on the resulting captured request is your real
-address, not the forged one. Don't skip that check; getting this wrong
-either breaks every per-IP rate limit (too broad) or misattributes real
-traffic (too narrow).
+**`TRUST_PROXY` on Railway**: Railway's edge terminates the client's TLS
+connection and sets `X-Forwarded-For` itself — in testing, a client-supplied
+value in that header was discarded and replaced, not appended to, so a
+forged header doesn't survive to the app. What did vary was the number of
+hops: `req.socket.remoteAddress` (the app's *immediate* peer) landed
+somewhere in `100.64.0.0/10`, the standard CGNAT range, but the resulting
+`X-Forwarded-For` sometimes carried a *second* Railway-internal address
+between the real client IP and that immediate peer — worth checking, since
+trusting only the immediate peer would leave `TRUST_PROXY` stopping one hop
+short of the real client IP. Don't guess either range. Instead: temporarily
+log `req.socket.remoteAddress` alongside the full `X-Forwarded-For` header,
+send a few requests (including one with a forged `X-Forwarded-For`) to see
+the actual chain, and set `TRUST_PROXY` to cover every Railway-side hop you
+see (comma-separated, CIDR allowed — e.g. `100.64.0.0/10,<other hop>/24`).
+Then do the verification the README already recommends above — confirm the
+`ip` on a captured request is your real address, not the forged one.
+Don't skip that check; getting this wrong either breaks every per-IP rate
+limit (too broad) or misattributes real traffic (too narrow).
 
 ### 3. Frontend (GitHub Pages)
 
