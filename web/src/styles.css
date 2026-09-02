@@ -302,10 +302,23 @@ pre {
 
 /* Filter bar */
 
-.filter-bar {
+.list-toolbar {
   display: flex;
+  align-items: flex-start;
   gap: 8px;
   margin-bottom: 12px;
+}
+
+.list-toolbar__export {
+  flex-shrink: 0;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.filter-bar {
+  display: flex;
+  flex: 1;
+  gap: 8px;
 }
 
 .filter-bar__method {
@@ -951,12 +964,20 @@ pre {
     flex-direction: column;
   }
 
+  .list-toolbar {
+    flex-direction: column;
+  }
+
   .filter-bar {
     flex-direction: column;
   }
 
   .filter-bar__method {
     flex-basis: auto;
+  }
+
+  .list-toolbar__export {
+    width: 100%;
   }
 
   .request-list__header,

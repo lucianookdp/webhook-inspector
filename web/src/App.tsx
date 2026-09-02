@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, createEndpoint, endpointUrl, fetchRequests, type ResponseConfig, streamUrl } from './api';
 import { computeBackoffDelay } from './backoff';
 import { EmptyState } from './EmptyState';
+import { buildExportFilename, downloadJson, serializeRequests } from './exportRequests';
 import { FilterBar } from './FilterBar';
 import { matchesFilter } from './filterRequests';
 import { formatCountdown } from './format';
@@ -286,6 +287,15 @@ export default function App() {
     }
   }
 
+  // Exports whatever's currently loaded and matching the active filter —
+  // the same rows on screen — rather than silently fetching the rest of the
+  // endpoint's history first; "Load more" is the explicit way to widen that
+  // before exporting.
+  function handleExport() {
+    if (!endpoint || filteredRequests.length === 0) return;
+    downloadJson(buildExportFilename(endpoint.id), serializeRequests(filteredRequests));
+  }
+
   const url = endpoint ? endpointUrl(endpoint.id) : null;
   const remainingMs = endpoint ? new Date(endpoint.expiresAt).getTime() - now : 0;
 
@@ -364,12 +374,22 @@ export default function App() {
             <EmptyState url={endpointUrl(endpoint.id)} />
           ) : (
             <>
-              <FilterBar
-                method={filterMethod}
-                query={filterQuery}
-                onMethodChange={setFilterMethod}
-                onQueryChange={setFilterQuery}
-              />
+              <div className="list-toolbar">
+                <FilterBar
+                  method={filterMethod}
+                  query={filterQuery}
+                  onMethodChange={setFilterMethod}
+                  onQueryChange={setFilterQuery}
+                />
+                <button
+                  type="button"
+                  className="list-toolbar__export"
+                  onClick={handleExport}
+                  disabled={filteredRequests.length === 0}
+                >
+                  Export JSON
+                </button>
+              </div>
               {droppedCount > 0 && (
                 <p className="app__dropped-notice">
                   {droppedCount} older {droppedCount === 1 ? 'request was' : 'requests were'} discarded to stay under
