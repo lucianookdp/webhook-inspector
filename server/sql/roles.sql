@@ -29,6 +29,10 @@ GRANT UPDATE (dropped_count) ON endpoints TO webhook_inspector_app;
 -- signing secret (routes/endpoints.js) updates exactly that column.
 GRANT UPDATE (signing_secret) ON endpoints TO webhook_inspector_app;
 
+-- A third: a user configuring what the capture route replies with for
+-- their endpoint (routes/endpoints.js) updates exactly these three.
+GRANT UPDATE (response_status, response_body, response_content_type) ON endpoints TO webhook_inspector_app;
+
 -- No sequence grants needed: endpoints.id is an application-generated text
 -- id and requests.id defaults to gen_random_uuid(), so nothing here reads
 -- from a sequence.

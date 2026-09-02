@@ -149,7 +149,7 @@ export async function webhookRoutes(app: FastifyInstance) {
 async function handleWebhook(req: WebhookRequest, reply: FastifyReply) {
   const { id } = req.params;
 
-  const { status } = await getEndpointStatus(id);
+  const { status, responseConfig } = await getEndpointStatus(id);
   if (status === 'missing') {
     reply.code(404).send({ error: 'endpoint not found' });
     return;
@@ -200,5 +200,12 @@ async function handleWebhook(req: WebhookRequest, reply: FastifyReply) {
   ]);
 
   publishRequest(id, row);
-  reply.code(200).send('ok');
+
+  // A configured response lets a user rehearse how their real sender reacts
+  // to a specific status/body — a 500 to check its retry logic, a 429 to
+  // check its backoff, a canned body their client expects to parse — rather
+  // than always seeing the fixed default this route replied with before.
+  reply.code(responseConfig.status ?? 200);
+  if (responseConfig.contentType) reply.header('content-type', responseConfig.contentType);
+  reply.send(responseConfig.body ?? 'ok');
 }

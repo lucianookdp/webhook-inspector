@@ -4,7 +4,12 @@ import { pool } from '../db.js';
 import { getEndpointStatus } from '../endpointStatus.js';
 import { generateId } from '../id.js';
 import { isLiveEndpointCeilingReached } from '../limits.js';
-import { endpointIdParamsSchema, requestsQuerystringSchema, signingSecretBodySchema } from '../schemas.js';
+import {
+  endpointIdParamsSchema,
+  requestsQuerystringSchema,
+  responseConfigBodySchema,
+  signingSecretBodySchema,
+} from '../schemas.js';
 import { computeSignatureStatus } from '../signature.js';
 import type { RequestRow } from '../types.js';
 
@@ -53,7 +58,7 @@ export async function endpointRoutes(app: FastifyInstance) {
       schema: { params: endpointIdParamsSchema, querystring: requestsQuerystringSchema },
     },
     async (req, reply) => {
-      const { status, droppedCount, signingSecret } = await getEndpointStatus(req.params.id);
+      const { status, droppedCount, signingSecret, responseConfig } = await getEndpointStatus(req.params.id);
       if (status === 'missing') {
         reply.code(404).send({ error: 'endpoint not found' });
         return;
@@ -113,6 +118,7 @@ export async function endpointRoutes(app: FastifyInstance) {
         nextCursor,
         droppedCount,
         signingSecretConfigured: signingSecret !== null,
+        responseConfig,
       });
     },
   );
@@ -136,6 +142,34 @@ export async function endpointRoutes(app: FastifyInstance) {
 
       const secret = req.body.secret?.trim() || null;
       await pool.query('UPDATE endpoints SET signing_secret = $1 WHERE id = $2', [secret, req.params.id]);
+      reply.code(204).send();
+    },
+  );
+
+  app.put<{
+    Params: { id: string };
+    Body: { status: number | null; body: string | null; contentType: string | null };
+  }>(
+    '/api/endpoints/:id/response-config',
+    {
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+      schema: { params: endpointIdParamsSchema, body: responseConfigBodySchema },
+    },
+    async (req, reply) => {
+      const { status } = await getEndpointStatus(req.params.id);
+      if (status === 'missing' || status === 'disabled') {
+        reply.code(404).send({ error: 'endpoint not found' });
+        return;
+      }
+      if (status === 'expired') {
+        reply.code(410).send({ error: 'endpoint expired' });
+        return;
+      }
+
+      await pool.query(
+        'UPDATE endpoints SET response_status = $1, response_body = $2, response_content_type = $3 WHERE id = $4',
+        [req.body.status ?? null, req.body.body ?? null, req.body.contentType?.trim() || null, req.params.id],
+      );
       reply.code(204).send();
     },
   );

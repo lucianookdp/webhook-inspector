@@ -58,3 +58,15 @@ export const signingSecretBodySchema = {
     secret: { type: ['string', 'null'], maxLength: 512 },
   },
 } as const;
+
+// Each field null resets that part of the response to the default (see
+// webhook.js). status is capped to 200-599 — deliberately excluding the
+// 1xx range, which doesn't carry a body the way this feature is meant to.
+export const responseConfigBodySchema = {
+  type: 'object',
+  properties: {
+    status: { type: ['integer', 'null'], minimum: 200, maximum: 599 },
+    body: { type: ['string', 'null'], maxLength: 65536 },
+    contentType: { type: ['string', 'null'], maxLength: 255 },
+  },
+} as const;
