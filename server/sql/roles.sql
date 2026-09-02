@@ -25,6 +25,10 @@ GRANT SELECT, INSERT, DELETE ON endpoints, requests TO webhook_inspector_app;
 -- expires_at or disabled.
 GRANT UPDATE (dropped_count) ON endpoints TO webhook_inspector_app;
 
+-- A second narrow exception: a user setting or clearing their endpoint's
+-- signing secret (routes/endpoints.js) updates exactly that column.
+GRANT UPDATE (signing_secret) ON endpoints TO webhook_inspector_app;
+
 -- No sequence grants needed: endpoints.id is an application-generated text
 -- id and requests.id defaults to gen_random_uuid(), so nothing here reads
 -- from a sequence.

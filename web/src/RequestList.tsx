@@ -73,6 +73,14 @@ export function RequestList({
                   binary
                 </span>
               )}
+              {row.signature === 'invalid' && (
+                <span
+                  className="request-row__flag request-row__flag--invalid"
+                  title="Signature does not match the configured secret"
+                >
+                  bad signature
+                </span>
+              )}
             </span>
             <span className="request-row__meta">
               <span className="request-row__size">{formatBytes(row.size_bytes)}</span>

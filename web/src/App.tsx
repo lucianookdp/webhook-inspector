@@ -5,6 +5,7 @@ import { EmptyState } from './EmptyState';
 import { formatCountdown } from './format';
 import { mergeMissedRequests } from './mergeRequests';
 import { RequestList } from './RequestList';
+import { SigningSecret } from './SigningSecret';
 import type { EndpointInfo, RequestRow } from './types';
 import { useCopy } from './useCopy';
 
@@ -68,6 +69,7 @@ export default function App() {
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
   const [announcement, setAnnouncement] = useState('');
+  const [signingSecretConfigured, setSigningSecretConfigured] = useState(false);
   const [copied, copy] = useCopy();
 
   // The SSE effect below only depends on [endpoint], so its closure would
@@ -89,6 +91,7 @@ export default function App() {
       setNextCursor(null);
       setDroppedCount(0);
       setSelectedId(null);
+      setSigningSecretConfigured(false);
     } catch (err) {
       setError(creationErrorMessage(err));
     } finally {
@@ -172,6 +175,7 @@ export default function App() {
           setAnnouncement(`${missedCount} ${missedCount === 1 ? 'request' : 'requests'} received while reconnecting`);
         }
         setDroppedCount(page.droppedCount);
+        setSigningSecretConfigured(page.signingSecretConfigured);
         source = new EventSource(streamUrl(endpoint.id));
         attachHandlers(source);
       } catch (err) {
@@ -197,6 +201,7 @@ export default function App() {
         setRequests(page.items);
         setNextCursor(page.nextCursor);
         setDroppedCount(page.droppedCount);
+        setSigningSecretConfigured(page.signingSecretConfigured);
         source = new EventSource(streamUrl(endpoint.id));
         attachHandlers(source);
       })
@@ -316,6 +321,14 @@ export default function App() {
           {connectionState === 'connecting' && 'Connecting...'}
           {connectionState === 'reconnecting' && 'Reconnecting...'}
         </div>
+      )}
+
+      {endpoint && (
+        <SigningSecret
+          endpointId={endpoint.id}
+          configured={signingSecretConfigured}
+          onChange={setSigningSecretConfigured}
+        />
       )}
 
       {endpoint && (

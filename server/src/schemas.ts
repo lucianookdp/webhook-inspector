@@ -47,3 +47,14 @@ export const forwardBodySchema = {
     url: { type: 'string', minLength: 1, maxLength: 2048 },
   },
 } as const;
+
+// null clears a previously-set secret; the handler also treats an
+// empty/whitespace-only string as clearing it, since that's the more
+// forgiving behavior for "I deleted the input and hit save".
+export const signingSecretBodySchema = {
+  type: 'object',
+  required: ['secret'],
+  properties: {
+    secret: { type: ['string', 'null'], maxLength: 512 },
+  },
+} as const;

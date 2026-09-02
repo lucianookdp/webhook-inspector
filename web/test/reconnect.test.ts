@@ -18,6 +18,7 @@ function row(id: string, receivedAt: string): RequestRow {
     ip: null,
     size_bytes: 0,
     received_at: receivedAt,
+    signature: 'unconfigured',
   };
 }
 
