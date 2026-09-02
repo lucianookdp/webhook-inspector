@@ -149,9 +149,10 @@ captured for.
 
 The server deploys as a Docker container (any host that runs one works;
 these steps use [Railway](https://railway.com)) and the frontend as a
-static build (these steps use [Vercel](https://vercel.com)). Postgres is
-assumed to be [Neon](https://neon.tech) or similar; Redis is optional but
-strongly recommended once more than one server instance is running.
+static build published to [GitHub Pages](https://pages.github.com/).
+Postgres is assumed to be [Neon](https://neon.tech) or similar; Redis is
+optional but strongly recommended once more than one server instance is
+running.
 
 ### 1. Database
 
@@ -203,28 +204,37 @@ address, not the forged one. Don't skip that check; getting this wrong
 either breaks every per-IP rate limit (too broad) or misattributes real
 traffic (too narrow).
 
-### 3. Frontend (Vercel)
+### 3. Frontend (GitHub Pages)
 
-1. Create a new Vercel project from this repo, with the project's root
-   directory set to `web`. Vercel auto-detects the Vite framework preset;
-   the default build command and output directory (`dist`) both already
-   match what `npm run build` produces (see the note below about
-   `admin.html`).
-2. Set `VITE_API_BASE` to the server's Railway URL from step 2. This is
-   baked in at build time, not read at runtime — changing it means
-   redeploying the frontend.
-3. Deploy, then set the server's `WEB_ORIGIN` (step 2 above) to this
-   project's production URL and redeploy the server so CORS allows it.
-   Vercel's preview deployments (one per branch/PR) each get their own
-   origin that won't match a single `WEB_ORIGIN`; if you need those to work
-   against the API too, that's a tradeoff to make deliberately; the guide
-   here only covers the production domain.
+`.github/workflows/deploy-pages.yml` builds and publishes `web/` on every
+push to `main` that touches it (or via manual dispatch). It runs
+typecheck/lint/test first, same as `ci.yml`'s web job, so a broken build
+never reaches Pages.
+
+1. In the repo's Settings > Pages, set **Source** to **GitHub Actions**.
+   This is a one-time step; without it the workflow's deploy job has
+   nowhere to publish to.
+2. In Settings > Secrets and variables > Actions > Variables, add a
+   repository variable `API_BASE_URL` set to the server's Railway URL from
+   step 2. The workflow passes it through as `VITE_API_BASE`, baked into the
+   build at compile time — changing it means re-running the workflow, not
+   just changing a runtime setting.
+3. Push to `main` (or run the workflow manually from the Actions tab). Once
+   it finishes, the site is live at `https://<username>.github.io/<repo>/`
+   for a project page, or `https://<username>.github.io/` if this is
+   published from a `<username>.github.io` repo or a custom domain is
+   configured. The workflow reads the correct base path for either case
+   from `actions/configure-pages` automatically — `vite.config.ts` doesn't
+   need to be touched for this.
+4. Set the server's `WEB_ORIGIN` (step 2 above) to that origin — just
+   `https://<username>.github.io`, without the repo path, since CORS
+   matches on scheme+host only — and redeploy the server so CORS allows it.
 
 `npm run build` emits **two** pages: `index.html` (the disposable
 inspector) and `admin.html` (the usage dashboard — see
 [Usage stats](#usage-stats) above), as two independent single-page bundles.
-Vercel's static build serves both real files as-is, so no extra
-routing/rewrite configuration is needed for this.
+Pages serves both real files as-is (`/admin.html` alongside the site root),
+so no extra routing/rewrite configuration is needed for this.
 
 ## Abuse handling
 

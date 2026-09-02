@@ -57,7 +57,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   registerErrorHandlers(app);
 
   // The web client and API live on different origins even in production
-  // (Vercel + Fly.io), so CORS is always needed, not just in dev. config.ts
+  // (GitHub Pages + Railway), so CORS is always needed, not just in dev. config.ts
   // already refused to boot if WEB_ORIGIN is unset in production, so the
   // permissive `true` case here can only be reached in development.
   await app.register(cors, {

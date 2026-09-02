@@ -8,7 +8,7 @@ import { buildDatabaseSsl } from './tls.js';
 import type { RequestRow } from './types.js';
 
 // Local pub/sub covers same-process subscribers instantly. Running more than
-// one instance (e.g. scaled out on a platform like Fly.io) needs a second
+// one instance (e.g. scaled out on a platform like Railway) needs a second
 // path so a request captured on instance A also reaches an SSE client
 // connected to instance B: publishRequest additionally NOTIFYs a fixed
 // Postgres channel, and every instance LISTENs on it, looks the row up by
