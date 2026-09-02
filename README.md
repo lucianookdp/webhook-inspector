@@ -8,14 +8,14 @@ A disposable webhook inspector: generate a URL, register it with any service tha
 
 ## Features
 
-- **Live capture** — any HTTP method, any content type, headers and query string included, appearing over SSE within about a second.
-- **Signature verification** — set a secret per endpoint and every captured request is checked against it (GitHub, Shopify, and a few other common conventions).
-- **Configurable response** — reply with a custom status, body and content-type instead of the fixed `200 ok`.
-- **Replay/forward** — resend a captured request to any URL you choose, with SSRF protections (private/loopback/link-local ranges blocked, DNS rebinding resisted).
-- **Filter and export** — narrow the list by method or a text search across path/body/headers, and export whatever's shown to JSON.
-- **Named endpoints** — give an endpoint a memorable slug (`/w/my-webhook`) instead of only the random id.
-- **Multi-instance fan-out** — captures broadcast across every running instance via Postgres `LISTEN`/`NOTIFY`; see `REDIS_URL` below for shared rate limiting.
-- **Usage dashboard** — a token-gated admin page (`/admin.html`) shows aggregate usage counts. See [Usage stats](#usage-stats).
+- **Live capture** — any HTTP method, any content type, headers and query string included, showing up in about a second.
+- **Signature verification** — set a secret per endpoint and check that a request really came from who it claims (GitHub, Shopify, and a few others).
+- **Configurable response** — reply with a custom status, body and content-type instead of the default `200 ok`.
+- **Replay/forward** — resend a captured request to any URL you choose, safely (it won't let you point it at your own internal network).
+- **Filter and export** — search by method, path, body or headers, and export what's shown to a JSON file.
+- **Named endpoints** — give an endpoint a memorable name (`/w/my-webhook`) instead of a random id.
+- **Multi-instance ready** — works the same whether you run one server or several.
+- **Usage dashboard** — a password-protected admin page (`/admin.html`) shows how much the site is being used. See [Usage stats](#usage-stats).
 
 ## Running locally
 
@@ -30,25 +30,7 @@ TRUST_PROXY=127.0.0.1,::1
 REDIS_URL=redis://localhost:6379
 ```
 
-`REDIS_URL` backs rate limiting with Redis so limits survive a restart and are shared across instances; optional locally (falls back to in-memory), required for any deployment running more than one instance.
-
-`MAX_LIVE_ENDPOINTS` / `MAX_TOTAL_STORED_BYTES` are absolute ceilings independent of per-IP rate limits, so a flood spread across many IPs or endpoints can't fill the database. New endpoints/captures get `503` once either is reached, until usage drops.
-
-`TRUST_PROXY` is a comma-separated list of the reverse proxy IP(s)/CIDR(s) actually in front of this process — only an `X-Forwarded-For` relayed by one of those addresses is trusted, since it gates `req.ip`, which per-IP rate limiting is keyed on. Defaults to loopback. In production, set it to your platform's actual proxy address (never guess) and verify: send a request with a forged `X-Forwarded-For` and confirm the `ip` on the resulting captured request is still your real address.
-
-### Configuration
-
-All environment parsing lives in `server/src/config.ts`, validated once at startup. When `NODE_ENV=production`, `WEB_ORIGIN` is required and the process refuses to boot without it rather than silently reflecting any origin for CORS.
-
-### Database roles
-
-The app's `DATABASE_URL` should connect as a role with only `SELECT`/`INSERT`/`DELETE` on `endpoints`, `requests` and `daily_stats` — no DDL, no superuser — plus a few narrow column-level `UPDATE` grants. `server/sql/roles.sql` creates that role once, run by an admin/owner role. `npm run migrate` (applies `server/migrations`) runs under that owner role via `MIGRATION_DATABASE_URL`, kept separate from the app's own connection. For a single-role local database, both variables can point at the same connection string. Re-run `roles.sql`'s `GRANT`s any time a migration adds a table/column the app needs.
-
-### Usage stats
-
-Set `ADMIN_TOKEN` (`openssl rand -hex 32`) to enable `GET /api/admin/stats` — active-endpoint count, all-time totals, and a 30-day daily breakdown. It holds only counts, never ids or captured content. Unset, the route 404s unconditionally.
-
-Open `/admin.html` on the deployed frontend and enter the token once; it's remembered in that browser's `localStorage`. There's intentionally no link to it from the main page.
+`REDIS_URL` is optional for local use (rate limiting just falls back to in-memory) but is needed for any real deployment. `TRUST_PROXY` can be left at the default above for local use — see the production section below for what to set it to when deploying.
 
 `web/.env` (optional, defaults to `http://localhost:3001`):
 
@@ -63,58 +45,59 @@ cd web && npm install && npm run dev
 
 Open `http://localhost:5173`.
 
-SSE was chosen over WebSockets because the data only flows one way, server to browser. Endpoints expire after 24 hours — a disposable inspector has no business holding onto someone else's request bodies, headers, and tokens past the debugging session they were captured for.
+Endpoints expire after 24 hours, so nothing captured here sticks around longer than the debugging session it was for.
 
-### Why the caller's IP is stored
+### Database roles
 
-Every captured request records the caller's IP, truncated to its /24 network (IPv4) or /48 (IPv6) rather than the exact address — useful for checking requests arrive from a provider's documented range, or telling two sources apart, without pinning down an individual caller. Deleted along with its endpoint after 24 hours.
+The app connects to the database with a limited account that can only read and write the data it needs — it can't change the database structure. `server/sql/roles.sql` creates that account once; run it as the database owner. `npm run migrate` (which does set up the database structure) uses a separate, more privileged connection (`MIGRATION_DATABASE_URL`) so the two never mix. For local development, both variables can just point at the same database.
+
+### Usage stats
+
+Set `ADMIN_TOKEN` (a random value — `openssl rand -hex 32`) to turn on a small stats page at `/admin.html`: how many endpoints exist, how many requests have been captured, day by day. It never shows anyone's actual captured data, just counts. Leave `ADMIN_TOKEN` unset to turn the page off entirely.
 
 ## Deploying to production
 
-The server deploys as a Docker container (these steps use [Railway](https://railway.com), including its own Postgres and Redis plugins) and the frontend as a static build on [GitHub Pages](https://pages.github.com/). An external Postgres (e.g. [Neon](https://neon.tech)) works too — everything below applies except the self-signed certificate note.
+The server runs as a Docker container (these steps use [Railway](https://railway.com), including its own Postgres and Redis) and the frontend publishes as a static site on [GitHub Pages](https://pages.github.com/).
 
 ### 1. Database
 
-1. Add a Postgres plugin to the Railway project (or create an external database).
-2. Connect as the database owner and run `server/sql/roles.sql` once, after replacing its placeholder password and database name. On Railway, do this from the Postgres service's **Console** tab (a root shell in the database container) rather than printing the owner connection string: `psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f <file>`.
-3. `npm run migrate` doesn't need to be run by hand — the server's Docker image runs it automatically on every boot via `MIGRATION_DATABASE_URL`.
+1. Add a Postgres database to the Railway project.
+2. Open its **Console** tab in the Railway dashboard (a terminal into the database itself) and run `server/sql/roles.sql` there, after filling in a real password and database name: `psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f <file>`. This sets up the limited account the app will connect as.
+3. Nothing else to do here — the app sets up its own database structure automatically the first time it starts.
 
-**Self-signed certificate on Railway's Postgres plugin**: Railway's `postgres-ssl` template generates its own CA rather than a publicly-trusted one, so `migrate.js` fails with `self-signed certificate in certificate chain` until `DATABASE_CA_CERT` is set. Don't work around this with `DATABASE_INSECURE_TLS=true` — fetch the real CA instead: in the Postgres service's Console tab, `cat /var/lib/postgresql/data/certs/root.crt` and copy the `-----BEGIN CERTIFICATE-----`…`-----END CERTIFICATE-----` block (skip the human-readable header above it) into `DATABASE_CA_CERT`. Not needed for a provider with a publicly-trusted cert (Neon and most others).
+**One Railway quirk**: Railway's Postgres uses a certificate the app doesn't automatically trust, so it'll fail to connect at first with a "self-signed certificate" error. Fix: in that same Console tab, run `cat /var/lib/postgresql/data/certs/root.crt`, copy everything between `-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----`, and paste it into the server's `DATABASE_CA_CERT` variable (step 2 below).
 
 ### 2. Server (Railway)
 
-1. Create a Railway service from this repo with root directory `server`. Railway picks up `server/railway.json` automatically (Dockerfile build, healthcheck on `GET /health`).
-2. Add Redis to the project and set `REDIS_URL` — usually via `${{Redis.REDIS_URL}}` rather than pasting the value. Without it, rate limits are in-memory and per-instance.
-3. Set the server's environment variables (see `server/.env.example` for the full list):
+1. Create a Railway service from this repo, with root directory set to `server`. Railway will pick up its settings automatically.
+2. Add Redis to the project and point the server's `REDIS_URL` at it (Railway lets you reference it directly rather than copy-pasting the value).
+3. Set the server's environment variables (see `server/.env.example` for the full list and explanations):
    - `NODE_ENV=production`
-   - `DATABASE_URL` / `MIGRATION_DATABASE_URL` — the app role and owner role from step 1.
-   - `DATABASE_CA_CERT` — Railway's own Postgres plugin only, see above.
-   - `WEB_ORIGIN` — the frontend's production URL (step 3 below); required in production.
-   - `ADMIN_TOKEN` — optional, see [Usage stats](#usage-stats).
-   - `TRUST_PROXY` — see the callout below.
-4. Deploy. `GET /health` should return `200 ok`. If `roles.sql` hasn't run yet, temporarily point `DATABASE_URL` at the same owner connection string as `MIGRATION_DATABASE_URL` so migrations can create the tables it grants against, then switch to the least-privilege role and redeploy.
+   - `DATABASE_URL` — the limited account from step 1
+   - `MIGRATION_DATABASE_URL` — the database owner account
+   - `DATABASE_CA_CERT` — see the certificate quirk above
+   - `WEB_ORIGIN` — the frontend's URL (step 3 below)
+   - `ADMIN_TOKEN` — optional, see [Usage stats](#usage-stats)
+   - `TRUST_PROXY` — see below
+4. Deploy, and check that `GET /health` returns `200 ok`.
 
-**`TRUST_PROXY` on Railway**: Railway's edge sets `X-Forwarded-For` itself and discards whatever a client put there — a forged header doesn't survive. What can vary is the hop count: `req.socket.remoteAddress` lands somewhere in `100.64.0.0/10` (the CGNAT range), but the chain sometimes carries a *second* Railway-internal address before that. Don't guess either range — temporarily log `req.socket.remoteAddress` alongside the full `X-Forwarded-For`, send a few requests (including one with a forged header) to see the actual chain, and set `TRUST_PROXY` to cover every hop you see (comma-separated, CIDR allowed, e.g. `100.64.0.0/10,<other hop>/24`). Then verify: confirm the `ip` on a captured request is your real address, not the forged one.
+**Setting `TRUST_PROXY` correctly**: this setting tells the app which IP addresses are allowed to say "here's the visitor's real address" — get it wrong and either rate limiting breaks, or someone can fake their IP. Railway doesn't publish a fixed address for this, so you have to find it yourself: temporarily add a line of code that logs the incoming connection's address, deploy, send it a couple of test requests, and see what shows up. Then set `TRUST_PROXY` to that (Railway typically uses addresses in `100.64.0.0/10`, and sometimes routes through a second internal hop too — check for both). Afterwards, confirm it worked: send a request with a fake `X-Forwarded-For` header and make sure the captured request still shows your real address, not the fake one.
 
 ### 3. Frontend (GitHub Pages)
 
-`.github/workflows/deploy-pages.yml` builds and publishes `web/` on every push to `main` that touches it (or via manual dispatch), running typecheck/lint/test first.
+A GitHub Actions workflow (`.github/workflows/deploy-pages.yml`) already builds and publishes the `web/` folder whenever `main` changes.
 
-1. In the repo's Settings > Pages, set **Source** to **GitHub Actions** (one-time).
-2. In Settings > Secrets and variables > Actions > Variables, add `API_BASE_URL` set to the server's Railway URL. The workflow bakes it in at build time as `VITE_API_BASE`.
-3. Push to `main` (or run the workflow manually). The site goes live at `https://<username>.github.io/<repo>/` (project page) or `https://<username>.github.io/` (user page or custom domain) — `actions/configure-pages` handles the base path automatically.
-4. Set the server's `WEB_ORIGIN` to that origin — just `https://<username>.github.io`, no repo path, since CORS matches scheme+host only — and redeploy.
-
-`npm run build` emits two pages, `index.html` and `admin.html`, served as-is by Pages with no extra routing needed.
+1. In the repo's **Settings > Pages**, set **Source** to **GitHub Actions** (one-time).
+2. In **Settings > Secrets and variables > Actions > Variables**, add `API_BASE_URL` set to the server's Railway URL from step 2.
+3. Push to `main` (or run the workflow manually from the Actions tab). The site goes live at `https://<username>.github.io/<repo>/`.
+4. Set the server's `WEB_ORIGIN` (step 2) to `https://<username>.github.io` — just that, without the repo name — and redeploy the server.
 
 ## Abuse handling
 
-This is a public, unauthenticated write endpoint — anyone who has (or guesses) an endpoint URL can send it anything. An operator can stop an endpoint from accepting new captures immediately, without waiting for its 24-hour expiry, by setting its `disabled` flag directly in the database:
+Anyone who has (or guesses) an endpoint's URL can send it anything — there's no login required to send requests to it. If one is being misused, an operator can shut it off immediately by marking it disabled directly in the database:
 
 ```sql
 UPDATE endpoints SET disabled = true WHERE id = '<endpoint id>';
 ```
-
-A disabled endpoint responds identically to one that never existed. There's no public API for this — only direct database access — since a self-service version would itself be a way to disrupt someone else's endpoint.
 
 To report abuse of the hosted demo (<https://lucianookdp.github.io/webhook-inspector/>), contact lucianokdp@gmail.com.
