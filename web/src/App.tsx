@@ -356,36 +356,44 @@ export default function App() {
           </div>
         )}
         {error && <p className="app__error">{error}</p>}
+
+        {endpoint && (
+          <div className="url-panel__settings">
+            <div className="url-panel__settings-row">
+              {connectionState !== 'expired' && (
+                <div className={`connection-indicator connection-indicator--${connectionState}`}>
+                  <span className="connection-indicator__dot" />
+                  {connectionState === 'live' && 'Live'}
+                  {connectionState === 'connecting' && 'Connecting...'}
+                  {connectionState === 'reconnecting' && 'Reconnecting...'}
+                </div>
+              )}
+              <button
+                type="button"
+                className="url-panel__test-request"
+                onClick={handleSendTestRequest}
+                disabled={sendingTest}
+              >
+                {sendingTest ? 'Sending...' : 'Send a test request'}
+              </button>
+            </div>
+
+            <div className="url-panel__toggles">
+              <EndpointSlug endpointId={endpoint.id} slug={endpoint.slug} onChange={applyEndpointSlug} />
+              <SigningSecret
+                endpointId={endpoint.id}
+                configured={signingSecretConfigured}
+                onChange={setSigningSecretConfigured}
+              />
+              <ResponseConfigControl
+                endpointId={endpoint.id}
+                config={responseConfig}
+                onChange={setResponseConfigState}
+              />
+            </div>
+          </div>
+        )}
       </section>
-
-      {endpoint && (
-        <button type="button" className="app__test-request" onClick={handleSendTestRequest} disabled={sendingTest}>
-          {sendingTest ? 'Sending...' : 'Send a test request'}
-        </button>
-      )}
-
-      {endpoint && connectionState !== 'expired' && (
-        <div className={`connection-indicator connection-indicator--${connectionState}`}>
-          <span className="connection-indicator__dot" />
-          {connectionState === 'live' && 'Live'}
-          {connectionState === 'connecting' && 'Connecting...'}
-          {connectionState === 'reconnecting' && 'Reconnecting...'}
-        </div>
-      )}
-
-      {endpoint && <EndpointSlug endpointId={endpoint.id} slug={endpoint.slug} onChange={applyEndpointSlug} />}
-
-      {endpoint && (
-        <SigningSecret
-          endpointId={endpoint.id}
-          configured={signingSecretConfigured}
-          onChange={setSigningSecretConfigured}
-        />
-      )}
-
-      {endpoint && (
-        <ResponseConfigControl endpointId={endpoint.id} config={responseConfig} onChange={setResponseConfigState} />
-      )}
 
       {endpoint && (
         <section className="app__body">
